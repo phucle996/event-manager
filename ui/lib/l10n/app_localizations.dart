@@ -683,7 +683,7 @@ abstract class AppLocalizations {
   /// No description provided for @eventListTitle.
   ///
   /// In en, this message translates to:
-  /// **'📅 Event List'**
+  /// **'Event List'**
   String get eventListTitle;
 
   /// No description provided for @createEventSuccess.
@@ -1141,6 +1141,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Load more'**
   String get loadMore;
+
+  /// No description provided for @filterGuests.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter guests'**
+  String get filterGuests;
+
+  /// No description provided for @refineGuestList.
+  ///
+  /// In en, this message translates to:
+  /// **'Refine your guest list'**
+  String get refineGuestList;
+
+  /// No description provided for @tryAdjustingFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Hãy thử thay đổi bộ lọc để xem thêm kết quả'**
+  String get tryAdjustingFilters;
+
+  /// No description provided for @eventListSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View, manage, and organize your upcoming events easily.'**
+  String get eventListSubtitle;
+
+  /// No description provided for @reportOverviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View and analyze your event performance.'**
+  String get reportOverviewSubtitle;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @noEventsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No events found.'**
+  String get noEventsFound;
+
+  /// No description provided for @performanceTrendSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Xem và phân tích sự thay đổi trong hiệu suất sự kiện'**
+  String get performanceTrendSubtitle;
+
+  /// No description provided for @monthlyEventSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View and analyze your event per monthly.'**
+  String get monthlyEventSubtitle;
 }
 
 class _AppLocalizationsDelegate

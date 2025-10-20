@@ -221,5 +221,25 @@
   "guestEventLabel": "Event",
   "save": "Save",
   "noGuestContact": "No contact info",
-  "loadMore": "Load more"
+  "loadMore": "Load more",
+
+  "filterGuests": "Filter guests",
+  "refineGuestList": "Refine your guest list",
+  "tryAdjustingFilters": "Hãy thử thay đổi bộ lọc để xem thêm kết quả",
+  "eventListTitle": "Event List",
+
+  "eventListSubtitle": "View, manage, and organize your upcoming events easily.",
+  "eventListTitle": "Event List",
+  "eventListSubtitle": "View, manage, and organize your upcoming events easily.",
+  "createEvent": "Create Event",
+  "reportOverviewSubtitle": "View and analyze your event performance.",
+
+  "refresh": "Refresh",
+  "noEventsFound": "No events found.",
+  "performanceTrendSubtitle": "Xem và phân tích sự thay đổi trong hiệu suất sự kiện",
+  "monthlyEventSubtitle": "View and analyze your event per monthly."
+
+
+
+
 }

@@ -25,4 +25,7 @@ type AggregateRepo interface {
 
 	// AggregateParticipationTrend returns guest counts per time bucket between from/to with specified granularity.
 	AggregateParticipationTrend(ctx context.Context, from, to time.Time, granularity string) ([]*models.ParticipationTrendAggregation, error)
+
+	// AggregateGuestStatsByEvent returns attendance statistics for a single event.
+	AggregateGuestStatsByEvent(ctx context.Context, eventID string) (*models.EventStatModel, error)
 }

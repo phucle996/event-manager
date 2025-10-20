@@ -1,13 +1,19 @@
 package handler
 
 import (
-	"context"
+    "context"
+    "fmt"
+    "mime"
+    "mime/multipart"
+    "net/http"
+    "path/filepath"
+    "strings"
+    "time"
+
 	"event_manager/internal/domain/entity"
 	service_interface "event_manager/internal/domain/service"
 	requestx "event_manager/internal/dto/request"
-	"fmt"
-	"net/http"
-	"time"
+	"event_manager/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,11 +24,15 @@ import (
 // =========================================
 type EventHandler struct {
 	service service_interface.EventService
+	storage storage.ObjectStorage
 }
 
 // ✅ Khởi tạo handler
-func NewEventHandler(s service_interface.EventService) *EventHandler {
-	return &EventHandler{service: s}
+func NewEventHandler(s service_interface.EventService, st storage.ObjectStorage) *EventHandler {
+	return &EventHandler{
+		service: s,
+		storage: st,
+	}
 }
 
 // =========================================
@@ -46,6 +56,9 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 		return
 	}
 
+	// Generate ID upfront for storage paths
+	eventID := uuid.New().String()
+
 	// 🖼️ Nhận danh sách nhiều file ảnh
 	form, err := c.MultipartForm()
 	if err != nil && err != http.ErrNotMultipart {
@@ -53,27 +66,22 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 		return
 	}
 
-	imagePaths := []string{}
+	imagePaths := make([]string, 0)
 	if form != nil && form.File != nil {
 		files := form.File["images"] // FE gửi dưới tên "images[]"
-		for _, file := range files {
-			filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), file.Filename)
-			savePath := "./uploads/" + filename
-
-			if err := c.SaveUploadedFile(file, savePath); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": fmt.Sprintf("Không thể lưu file %s: %v", file.Filename, err),
-				})
-				return
-			}
-
-			imagePaths = append(imagePaths, savePath)
+		uploaded, err := h.uploadEventImages(c.Request.Context(), eventID, files)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Không thể tải ảnh lên: %v", err),
+			})
+			return
 		}
+		imagePaths = append(imagePaths, uploaded...)
 	}
 
 	// 🧱 Tạo entity từ DTO
 	event := &entity.Event{
-		ID:          uuid.New().String(),
+		ID:          eventID,
 		Name:        req.Name,
 		Description: req.Description,
 		Type:        req.Type,
@@ -127,18 +135,17 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 	imagePaths := []string{}
 	if form != nil && form.File != nil {
 		files := form.File["images"] // FE gửi dưới key "images"
-		for _, file := range files {
-			filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), file.Filename)
-			savePath := "./uploads/" + filename
-			if err := c.SaveUploadedFile(file, savePath); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": fmt.Sprintf("Không thể lưu file %s: %v", file.Filename, err),
-				})
-				return
-			}
-			imagePaths = append(imagePaths, savePath)
+		uploaded, err := h.uploadEventImages(c.Request.Context(), id, files)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Không thể tải ảnh lên: %v", err),
+			})
+			return
 		}
+		imagePaths = append(imagePaths, uploaded...)
 	}
+
+	imagePaths = mergeImageURLs(req.ImageURLs, imagePaths)
 
 	// ⚙️ Bước 4: Tạo entity để cập nhật
 	event := &entity.Event{
@@ -170,6 +177,76 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "✅ Cập nhật sự kiện thành công",
 	})
+}
+
+func (h *EventHandler) uploadEventImages(ctx context.Context, eventID string, files []*multipart.FileHeader) ([]string, error) {
+	if len(files) == 0 || h.storage == nil {
+		return nil, nil
+	}
+
+	results := make([]string, 0, len(files))
+
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+
+		reader, err := file.Open()
+		if err != nil {
+			return nil, fmt.Errorf("không thể mở file %s: %w", file.Filename, err)
+		}
+
+		contentType := file.Header.Get("Content-Type")
+		if contentType == "" {
+			if ext := filepath.Ext(file.Filename); ext != "" {
+				if ct := mime.TypeByExtension(ext); ct != "" {
+					contentType = ct
+				}
+			}
+		}
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+
+		objectName := fmt.Sprintf("events/%s/%d_%s", eventID, time.Now().UnixNano(), sanitizeFilename(file.Filename))
+		url, uploadErr := h.storage.Upload(ctx, objectName, reader, file.Size, contentType)
+		reader.Close()
+		if uploadErr != nil {
+			return nil, uploadErr
+		}
+
+		results = append(results, url)
+	}
+
+	return results, nil
+}
+
+func sanitizeFilename(name string) string {
+    base := filepath.Base(name)
+    base = strings.ReplaceAll(base, " ", "_")
+    base = strings.ReplaceAll(base, "..", "_")
+    base = strings.ReplaceAll(base, "/", "_")
+    base = strings.ReplaceAll(base, "\\", "_")
+    return base
+}
+
+func mergeImageURLs(existing []string, uploaded []string) []string {
+	total := make([]string, 0, len(existing)+len(uploaded))
+	seen := map[string]struct{}{}
+
+	for _, url := range append(existing, uploaded...) {
+		url = strings.TrimSpace(url)
+		if url == "" {
+			continue
+		}
+		if _, ok := seen[url]; ok {
+			continue
+		}
+		seen[url] = struct{}{}
+		total = append(total, url)
+	}
+
+	return total
 }
 
 // DELETE /events/:id

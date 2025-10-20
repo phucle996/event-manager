@@ -22,11 +22,16 @@ class _LanguageThemePageState extends State<LanguageThemePage> {
     final localeProvider = context.watch<LocaleProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.languageAndTheme)),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.languageAndTheme),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          Text(AppLocalizations.of(context)!.theme, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            AppLocalizations.of(context)!.theme,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           RadioListTile<AppTheme>(
             title: Text(AppLocalizations.of(context)!.light),
             value: AppTheme.light,
@@ -52,7 +57,10 @@ class _LanguageThemePageState extends State<LanguageThemePage> {
             },
           ),
           const SizedBox(height: 24),
-          Text(AppLocalizations.of(context)!.language, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            AppLocalizations.of(context)!.language,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           RadioListTile<Locale>(
             title: const Text('Tiếng Việt'),
             value: const Locale('vi'),

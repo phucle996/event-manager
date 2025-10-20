@@ -3,9 +3,11 @@ import '../../../l10n/app_localizations.dart';
 import '../../../models/event_model.dart';
 import '../../../services/event_api_service.dart';
 import '../../../utils/app_toast.dart';
+import '../../../widgets/app_page_background.dart';
 import '../create/main_page.dart';
 import './widgets/event_item.dart';
 import './widgets/event_filter_bar.dart';
+import './widgets/event_header.dart';
 
 class EventListPage extends StatefulWidget {
   const EventListPage({super.key});
@@ -37,7 +39,6 @@ class _EventListPageState extends State<EventListPage> {
     });
   }
 
-  // Maps internal keys to the hardcoded values the backend expects.
   String _getBackendStatusValue(String key) {
     switch (key) {
       case 'upcoming':
@@ -50,7 +51,6 @@ class _EventListPageState extends State<EventListPage> {
         return 'Tất cả trạng thái';
     }
   }
-
 
   Future<void> _fetchEvents() async {
     if (!mounted) return;
@@ -72,7 +72,9 @@ class _EventListPageState extends State<EventListPage> {
         to = DateTime(now.year, 12, 31);
       }
 
-      final statusForApi = _selectedStatus == 'allStatuses' ? null : _getBackendStatusValue(_selectedStatus);
+      final statusForApi = _selectedStatus == 'allStatuses'
+          ? null
+          : _getBackendStatusValue(_selectedStatus);
 
       final data = await _api.getEvents(
         status: statusForApi,
@@ -100,7 +102,10 @@ class _EventListPageState extends State<EventListPage> {
         reverseTransitionDuration: const Duration(milliseconds: 300),
         pageBuilder: (_, animation, __) => const EventCreatePage(),
         transitionsBuilder: (_, animation, __, child) {
-          final tween = Tween(begin: const Offset(1, 0), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic));
+          final tween = Tween(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic));
           return SlideTransition(position: animation.drive(tween), child: child);
         },
       ),
@@ -129,9 +134,7 @@ class _EventListPageState extends State<EventListPage> {
               child: Text(materialL10n.cancelButtonLabel),
             ),
             FilledButton.tonal(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: Text(l10n.delete),
             ),
@@ -140,36 +143,25 @@ class _EventListPageState extends State<EventListPage> {
       },
     );
 
-    if (confirmed == true) {
-      await _deleteEvent(event.id);
-    }
+    if (confirmed == true) await _deleteEvent(event.id);
   }
 
   Future<void> _deleteEvent(String eventId) async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
-    setState(() {
-      _deletingEventId = eventId;
-    });
+    setState(() => _deletingEventId = eventId);
 
     try {
       await _api.deleteEvent(eventId);
       if (!mounted) return;
-
       setState(() {
         _events.removeWhere((event) => event.id == eventId);
-        if (_deletingEventId == eventId) {
-          _deletingEventId = null;
-        }
+        _deletingEventId = null;
       });
       showAppToast(context, l10n.eventDeleted, type: ToastType.info);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        if (_deletingEventId == eventId) {
-          _deletingEventId = null;
-        }
-      });
+      setState(() => _deletingEventId = null);
       showAppToast(context, l10n.deleteError(e.toString()), type: ToastType.error);
     }
   }
@@ -180,39 +172,24 @@ class _EventListPageState extends State<EventListPage> {
     final text = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
 
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        body: Center(
-          child: Text(
-            l10n.loadingError(_errorMessage!),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.redAccent),
-          ),
-        ),
-      );
-    }
-
     final filtered = _events.where((e) {
       final search = _searchText.toLowerCase();
       final nameMatch = e.name.toLowerCase().contains(search);
 
       final backendStatusValue = _getBackendStatusValue(_selectedStatus);
-      final statusMatch = _selectedStatus == "allStatuses" || e.status == backendStatusValue;
-      
+      final statusMatch =
+          _selectedStatus == "allStatuses" || e.status == backendStatusValue;
+
       final now = DateTime.now();
       bool timeMatch = true;
       if (_selectedTime == "thisMonth") {
-        timeMatch = e.startDate.month == now.month && e.startDate.year == now.year;
+        timeMatch =
+            e.startDate.month == now.month && e.startDate.year == now.year;
       } else if (_selectedTime == "thisWeek") {
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        timeMatch = e.startDate.isAfter(startOfWeek) && e.startDate.isBefore(endOfWeek);
+        timeMatch =
+            e.startDate.isAfter(startOfWeek) && e.startDate.isBefore(endOfWeek);
       } else if (_selectedTime == "thisYear") {
         timeMatch = e.startDate.year == now.year;
       }
@@ -221,93 +198,117 @@ class _EventListPageState extends State<EventListPage> {
 
     filtered.sort((a, b) {
       switch (_selectedSort) {
-        case "nameAZ": return a.name.compareTo(b.name);
-        case "nameZA": return b.name.compareTo(a.name);
-        case "oldest": return a.startDate.compareTo(b.startDate);
-        default: return b.startDate.compareTo(a.startDate);
+        case "nameAZ":
+          return a.name.compareTo(b.name);
+        case "nameZA":
+          return b.name.compareTo(a.name);
+        case "oldest":
+          return a.startDate.compareTo(b.startDate);
+        default:
+          return b.startDate.compareTo(a.startDate);
       }
     });
 
     final visibleEvents = filtered.take(_visibleCount).toList();
+    final hasMore = _visibleCount < filtered.length;
 
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  l10n.eventListTitle,
-                  style: text.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: color.onSurface),
+    if (_isLoading) {
+      return const AppPageBackground(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return AppPageBackground(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.loadingError(_errorMessage!),
+                textAlign: TextAlign.center,
+                style: text.bodyMedium?.copyWith(color: Colors.redAccent),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _fetchEvents, child: Text(l10n.retry)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ Main layout
+    return AppPageBackground(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: EventHeader(onCreateEvent: _navigateToCreatePage),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                EventFilterBar(
+                  searchController: _searchController,
+                  onSearchChanged: (v) => setState(() => _searchText = v),
+                  selectedStatus: _selectedStatus,
+                  selectedSort: _selectedSort,
+                  selectedTime: _selectedTime,
+                  onStatusChanged: (v) {
+                    setState(() => _selectedStatus = v);
+                    _fetchEvents();
+                  },
+                  onSortChanged: (v) => setState(() => _selectedSort = v),
+                  onTimeChanged: (v) {
+                    setState(() => _selectedTime = v);
+                    _fetchEvents();
+                  },
                 ),
-                FilledButton.icon(
-                  onPressed: _navigateToCreatePage,
-                  icon: const Icon(Icons.add),
-                  label: Text(l10n.createEvent),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.showingEvents365,
+                  style: text.bodySmall?.copyWith(
+                    color: color.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            EventFilterBar(
-              searchController: _searchController,
-              onSearchChanged: (v) => setState(() => _searchText = v),
-              selectedStatus: _selectedStatus,
-              selectedSort: _selectedSort,
-              selectedTime: _selectedTime,
-              onStatusChanged: (v) { setState(() => _selectedStatus = v); _fetchEvents(); },
-              onSortChanged: (v) => setState(() => _selectedSort = v),
-              onTimeChanged: (v) { setState(() => _selectedTime = v); _fetchEvents(); },
-            ),
-            const SizedBox(height: 12),
-
-            Text(
-              l10n.showingEvents365,
-              style: text.bodySmall?.copyWith(color: color.onSurfaceVariant, fontStyle: FontStyle.italic),
-            ),
-            const SizedBox(height: 16),
-
-            Expanded(
-              child: visibleEvents.isEmpty
-                  ? Center(
-                      child: Text(
-                        l10n.noEvents,
-                        style: text.bodyMedium?.copyWith(color: color.onSurfaceVariant),
-                      ),
-                    )
-                  : NotificationListener<ScrollNotification>(
-                      onNotification: (scroll) {
-                        if (scroll.metrics.pixels >= scroll.metrics.maxScrollExtent - 50 &&
-                            _visibleCount < filtered.length) {
-                          setState(() => _visibleCount += 4);
-                        }
-                        return false;
-                      },
-                      child: ListView.builder(
-                        itemCount: visibleEvents.length,
-                        itemBuilder: (_, i) {
-                          final event = visibleEvents[i];
-                          return EventItem(
-                            key: ValueKey(event.id),
-                            event: event,
-                            index: i,
-                            isDeleting: event.id == _deletingEventId,
-                            onDelete: () => _confirmDelete(event),
-                          );
-                        },
+                const SizedBox(height: 20),
+                if (visibleEvents.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Text(
+                      l10n.noEvents,
+                      textAlign: TextAlign.center,
+                      style: text.bodyMedium?.copyWith(
+                        color: color.onSurfaceVariant,
                       ),
                     ),
+                  )
+                else
+                  ...visibleEvents.map((event) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: EventItem(
+                        key: ValueKey(event.id),
+                        event: event,
+                        index: visibleEvents.indexOf(event),
+                        isDeleting: event.id == _deletingEventId,
+                        onDelete: () => _confirmDelete(event),
+                      ),
+                    );
+                  }),
+                if (hasMore)
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _visibleCount += 4),
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: Text(l10n.loadMore),
+                    ),
+                  ),
+              ]),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

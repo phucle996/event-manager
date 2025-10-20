@@ -45,8 +45,9 @@ class _EventEditPageState extends State<EventEditPage> {
     _nameController = TextEditingController(text: e.name);
     _locationController = TextEditingController(text: e.location);
     _descriptionController = TextEditingController(text: e.description ?? '');
-    _maxGuestsController =
-        TextEditingController(text: e.maxGuests?.toString() ?? '0');
+    _maxGuestsController = TextEditingController(
+      text: e.maxGuests?.toString() ?? '0',
+    );
     _selectedType = e.type;
     _startDate = e.startDate;
     _startTime = TimeOfDay.fromDateTime(e.startDate);
@@ -70,10 +71,20 @@ class _EventEditPageState extends State<EventEditPage> {
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
         status: widget.event.status,
-        startDate: DateTime(_startDate.year, _startDate.month, _startDate.day,
-            _startTime.hour, _startTime.minute),
-        endDate: DateTime(_endDate.year, _endDate.month, _endDate.day,
-            _endTime.hour, _endTime.minute),
+        startDate: DateTime(
+          _startDate.year,
+          _startDate.month,
+          _startDate.day,
+          _startTime.hour,
+          _startTime.minute,
+        ),
+        endDate: DateTime(
+          _endDate.year,
+          _endDate.month,
+          _endDate.day,
+          _endTime.hour,
+          _endTime.minute,
+        ),
         description: _descriptionController.text.trim(),
         maxGuests: int.tryParse(_maxGuestsController.text) ?? 0,
         type: _selectedType,
@@ -86,16 +97,18 @@ class _EventEditPageState extends State<EventEditPage> {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          showAppToast(context, l10n.updateSuccess,
-              type: ToastType.success);
+          showAppToast(context, l10n.updateSuccess, type: ToastType.success);
           Navigator.pop(context, result);
         }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      showAppToast(context, l10n.updateError(e.toString()),
-          type: ToastType.error);
+      showAppToast(
+        context,
+        l10n.updateError(e.toString()),
+        type: ToastType.error,
+      );
     }
   }
 
@@ -114,40 +127,45 @@ class _EventEditPageState extends State<EventEditPage> {
               EventFormHeader(title: l10n.eventInfo),
               const SizedBox(height: 16),
               EventTextField(
-                  controller: _nameController,
-                  label: l10n.eventName,
-                  icon: Icons.event),
+                controller: _nameController,
+                label: l10n.eventName,
+                icon: Icons.event,
+              ),
               const SizedBox(height: 16),
               EventTextField(
-                  controller: _locationController,
-                  label: l10n.eventLocation,
-                  icon: Icons.place),
+                controller: _locationController,
+                label: l10n.eventLocation,
+                icon: Icons.place,
+              ),
               const SizedBox(height: 16),
               Text(
-                  "${l10n.start}: ${DateFormat('dd/MM/yyyy HH:mm').format(_startDate)}"),
+                "${l10n.start}: ${DateFormat('dd/MM/yyyy HH:mm').format(_startDate)}",
+              ),
               EventDateTimePicker(
-                  label: l10n.changeStartTime,
-                  icon: Icons.calendar_today,
-                  onPicked: (d, t) =>
-                      setState(() {
-                        _startDate = d;
-                        _startTime = t;
-                      })),
+                label: l10n.changeStartTime,
+                icon: Icons.calendar_today,
+                onPicked: (d, t) => setState(() {
+                  _startDate = d;
+                  _startTime = t;
+                }),
+              ),
               const SizedBox(height: 12),
               Text(
-                  "${l10n.end}: ${DateFormat('dd/MM/yyyy HH:mm').format(_endDate)}"),
+                "${l10n.end}: ${DateFormat('dd/MM/yyyy HH:mm').format(_endDate)}",
+              ),
               EventDateTimePicker(
-                  label: l10n.changeEndTime,
-                  icon: Icons.timelapse,
-                  onPicked: (d, t) =>
-                      setState(() {
-                        _endDate = d;
-                        _endTime = t;
-                      })),
+                label: l10n.changeEndTime,
+                icon: Icons.timelapse,
+                onPicked: (d, t) => setState(() {
+                  _endDate = d;
+                  _endTime = t;
+                }),
+              ),
               const SizedBox(height: 16),
               EventTypeSelector(
-                  maxGuestsController: _maxGuestsController,
-                  onTypeChanged: (type) => setState(() => _selectedType = type)),
+                maxGuestsController: _maxGuestsController,
+                onTypeChanged: (type) => setState(() => _selectedType = type),
+              ),
               const SizedBox(height: 16),
               EventDescriptionField(controller: _descriptionController),
               const SizedBox(height: 20),
@@ -169,8 +187,10 @@ class _EventEditPageState extends State<EventEditPage> {
   Widget _buildImageGrid() {
     final l10n = AppLocalizations.of(context)!;
     if (_imageUrls.isEmpty) {
-      return Text(l10n.noImages,
-          style: const TextStyle(fontStyle: FontStyle.italic));
+      return Text(
+        l10n.noImages,
+        style: const TextStyle(fontStyle: FontStyle.italic),
+      );
     }
     return GridView.builder(
       shrinkWrap: true,
@@ -200,8 +220,14 @@ class _EventEditPageState extends State<EventEditPage> {
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: const BoxDecoration(
-                        color: Colors.black54, shape: BoxShape.circle),
-                    child: const Icon(Icons.close, color: Colors.white, size: 16),
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
               ),

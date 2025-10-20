@@ -224,5 +224,24 @@
   "guestPhoneLabel": "Số điện thoại",
   "guestEventLabel": "Sự kiện",
   "save": "Lưu",
-  "noGuestContact": "Không có thông tin liên hệ"
+  "noGuestContact": "Không có thông tin liên hệ",
+
+  "filterGuests": "Bộ lọc khách mời",
+  "refineGuestList": "Tinh chỉnh danh sách khách theo tiêu chí bạn muốn",
+
+  "tryAdjustingFilters": "Try adjusting your filters to find more results",
+  "eventListTitle": "Danh sách sự kiện",
+  "eventListSubtitle": "Xem, quản lý và sắp xếp các sự kiện sắp diễn ra của bạn.",
+  "eventListTitle": "Danh sách sự kiện",
+  "eventListSubtitle": "Xem, quản lý và sắp xếp các sự kiện sắp diễn ra của bạn.",
+  "createEvent": "Thêm sự kiện",
+  "reportOverviewSubtitle": "Xem và phân tích hiệu suất sự kiện của bạn",
+  "refresh": "Làm mới",
+  "guestListTitle": "Danh sách khách mời",
+  "performanceTrendSubtitle": "Xem và phân tích sự thay đổi trong hiệu suất sự kiện",
+
+  "monthlyEventSubtitle": "Xem và phân tích hiệu suất sự kiện theo tháng"
+
+
+
 }

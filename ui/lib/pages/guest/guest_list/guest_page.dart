@@ -5,10 +5,11 @@ import '../guest_new/guest_add_page.dart';
 import '../../../models/guest_model.dart';
 import '../../../services/guest_api_service.dart';
 import '../../../utils/app_toast.dart';
+import '../../../widgets/app_page_background.dart';
 
+import './widgets/guest_header_stats.dart';
 import './widgets/guest_filters.dart';
-import './widgets/guest_header.dart';
-import './widgets/guest_list.dart';
+import './widgets/guest_list_section.dart';
 
 class GuestPage extends StatefulWidget {
   const GuestPage({super.key});
@@ -18,8 +19,8 @@ class GuestPage extends StatefulWidget {
 }
 
 class _GuestPageState extends State<GuestPage> {
-  final GuestApiService _api = GuestApiService();
-  final TextEditingController _searchController = TextEditingController();
+  final _api = GuestApiService();
+  final _searchController = TextEditingController();
 
   String _searchText = '';
   String _selectedStatus = 'all';
@@ -27,10 +28,11 @@ class _GuestPageState extends State<GuestPage> {
   int _visibleCount = 8;
 
   List<GuestModel> _guests = [];
-  Map<String, String> _statusOptions = const {};
-  Map<String, String> _sortOptions = const {};
   bool _isLoading = true;
   String? _errorMessage;
+
+  Map<String, String> _statusOptions = {};
+  Map<String, String> _sortOptions = {};
 
   @override
   void initState() {
@@ -41,10 +43,7 @@ class _GuestPageState extends State<GuestPage> {
         _visibleCount = 8;
       });
     });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchGuests();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchGuests());
   }
 
   @override
@@ -57,7 +56,6 @@ class _GuestPageState extends State<GuestPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final l10n = AppLocalizations.of(context)!;
-
     _statusOptions = {
       'all': l10n.allStatuses,
       'attended': l10n.attended,
@@ -65,7 +63,6 @@ class _GuestPageState extends State<GuestPage> {
       'preRegistered': l10n.preRegistered,
       'absent': l10n.absent,
     };
-
     _sortOptions = {
       'nameAZ': l10n.nameAZ,
       'nameZA': l10n.nameZA,
@@ -74,7 +71,6 @@ class _GuestPageState extends State<GuestPage> {
     };
   }
 
-  // 🧩 Gọi API lấy danh sách khách
   Future<void> _fetchGuests() async {
     setState(() {
       _isLoading = true;
@@ -97,197 +93,215 @@ class _GuestPageState extends State<GuestPage> {
     }
   }
 
-  // 🟡 Phân loại trạng thái khách
-  String _statusKeyForGuest(GuestModel guest) {
-    final hasEmail = guest.hasEmail;
-    final hasPhone = guest.hasPhone;
-
-    if (hasEmail && hasPhone) return 'attended';
-    if (hasEmail) return 'registered';
-    if (hasPhone) return 'preRegistered';
+  String _statusKeyForGuest(GuestModel g) {
+    if (g.hasEmail && g.hasPhone) return 'attended';
+    if (g.hasEmail) return 'registered';
+    if (g.hasPhone) return 'preRegistered';
     return 'absent';
   }
 
-  // 🧮 Lọc và sắp xếp danh sách
   List<GuestModel> _applyFilters() {
     final keyword = _searchText.trim().toLowerCase();
+    final filtered = _guests.where((g) {
+      final matchesKeyword = keyword.isEmpty ||
+          g.fullName.toLowerCase().contains(keyword) ||
+          (g.email ?? '').toLowerCase().contains(keyword) ||
+          (g.phone ?? '').toLowerCase().contains(keyword);
 
-    final filtered = _guests.where((guest) {
-      final matchesKeyword =
-          keyword.isEmpty ||
-              guest.fullName.toLowerCase().contains(keyword) ||
-              (guest.email ?? '').toLowerCase().contains(keyword) ||
-              (guest.phone ?? '').toLowerCase().contains(keyword);
-
-      final guestStatusKey = _statusKeyForGuest(guest);
       final matchesStatus =
-          _selectedStatus == 'all' || guestStatusKey == _selectedStatus;
+          _selectedStatus == 'all' || _statusKeyForGuest(g) == _selectedStatus;
 
       return matchesKeyword && matchesStatus;
     }).toList();
 
     switch (_selectedSort) {
       case 'nameZA':
-        filtered.sort(
-              (a, b) =>
-              b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()),
-        );
+        filtered.sort((a, b) =>
+            b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()));
         break;
       case 'newest':
-        filtered.sort((a, b) {
-          final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return bDate.compareTo(aDate);
-        });
+        filtered.sort((a, b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
         break;
       case 'oldest':
-        filtered.sort((a, b) {
-          final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return aDate.compareTo(bDate);
-        });
+        filtered.sort((a, b) =>
+            (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0)));
         break;
       default:
-        filtered.sort(
-              (a, b) =>
-              a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
-        );
+        filtered.sort((a, b) =>
+            a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
     }
 
     return filtered;
   }
 
-  // ➕ Mở trang thêm khách mời
   Future<void> _openAddGuest() async {
     final l10n = AppLocalizations.of(context)!;
-
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const GuestAddPage()),
     );
 
     if (result == null || result['success'] != true) return;
-
     final guest = result['guest'] as GuestModel?;
     if (guest == null) return;
 
     setState(() {
       _guests.insert(0, guest);
-      if (_visibleCount < _guests.length) {
-        _visibleCount++;
-      }
+      if (_visibleCount < _guests.length) _visibleCount++;
     });
 
-    // ✅ Hiển thị toast an toàn sau khi quay lại
-    showAppToast(
-      context,
-      l10n.guestCreateSuccess,
-      type: ToastType.success,
-    );
+    showAppToast(context, l10n.guestCreateSuccess, type: ToastType.success);
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context)!;
-
+    final color = Theme.of(context).colorScheme;
     final filteredGuests = _applyFilters();
 
-    // 🌀 Loading
+    // 🌀 Loading state
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppPageBackground(
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    // ❌ Lỗi
+    // ❌ Error state
     if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.loadingError(_errorMessage!),
-              textAlign: TextAlign.center,
-              style: text.bodyMedium?.copyWith(color: Colors.redAccent),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: _fetchGuests, child: Text(l10n.retry)),
-          ],
+      return AppPageBackground(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                l10n.loadingError(_errorMessage!),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _fetchGuests,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(l10n.retry),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    // ✅ Hiển thị danh sách khách
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GuestHeader(onAddGuest: _openAddGuest),
-          const SizedBox(height: 20),
-
-          // 🔍 Ô tìm kiếm
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: l10n.searchGuests,
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: color.surfaceContainerHighest,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+    // ✅ Main layout
+    return AppPageBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 🧭 Header Stats
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: GuestHeaderStats(
+                total: _guests.length,
+                attended: _guests
+                    .where((g) => _statusKeyForGuest(g) == 'attended')
+                    .length,
+                pending: _guests
+                    .where((g) => _statusKeyForGuest(g) == 'preRegistered')
+                    .length,
+                onAddGuest: _openAddGuest,
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-          // ⚙️ Bộ lọc
-          GuestFilters(
-            selectedStatus: _selectedStatus,
-            selectedSort: _selectedSort,
-            onStatusChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedStatus = value;
-                _visibleCount = 8;
-              });
-            },
-            onSortChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedSort = value;
-              });
-            },
-            statusOptions: _statusOptions,
-            sortOptions: _sortOptions,
-          ),
+            // 🧾 Nội dung có thể cuộn
+            // 🧾 Nội dung có thể cuộn
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: ListView(
+                  key: ValueKey(_guests.length + _selectedStatus.hashCode),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  children: [
+                    // 🎛️ Bộ lọc (đã bỏ box ngoài)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.filterGuests,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.refineGuestList,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withOpacity(0.8),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          GuestFilters(
+                            selectedStatus: _selectedStatus,
+                            selectedSort: _selectedSort,
+                            onStatusChanged: (v) =>
+                                setState(() => _selectedStatus = v ?? 'all'),
+                            onSortChanged: (v) =>
+                                setState(() => _selectedSort = v ?? 'nameAZ'),
+                            statusOptions: _statusOptions,
+                            sortOptions: _sortOptions,
+                          ),
+                        ],
+                      ),
+                    ),
 
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.showingGuestsInLast365Days,
-              style: text.bodySmall?.copyWith(
-                color: color.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
+                    const SizedBox(height: 10),
+
+                    // 🔍 Thanh tìm kiếm
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: l10n.searchGuests,
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 📋 Danh sách khách
+                    GuestList(
+                      guests: filteredGuests,
+                      visibleCount: _visibleCount,
+                      statusResolver: _statusKeyForGuest,
+                      statusLabels: _statusOptions,
+                      onLoadMore: () => setState(() => _visibleCount += 4),
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
-
-          // 📋 Danh sách khách
-          Expanded(
-            child: GuestList(
-              guests: filteredGuests,
-              visibleCount: _visibleCount,
-              statusResolver: _statusKeyForGuest,
-              statusLabels: _statusOptions,
-              onLoadMore: () => setState(() => _visibleCount += 4),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

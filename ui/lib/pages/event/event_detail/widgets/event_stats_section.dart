@@ -60,9 +60,24 @@ class _EventStatsSectionState extends State<EventStatsSection> {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _StatCard(l10n.registeredUsers, registered.toString(), Icons.people, Colors.blue),
-                _StatCard(l10n.checkedIn, checkedIn.toString(), Icons.check_circle, Colors.green),
-                _StatCard(l10n.absentees, absent.toString(), Icons.cancel, Colors.redAccent),
+                _StatCard(
+                  l10n.registeredUsers,
+                  registered.toString(),
+                  Icons.people,
+                  Colors.blue,
+                ),
+                _StatCard(
+                  l10n.checkedIn,
+                  checkedIn.toString(),
+                  Icons.check_circle,
+                  Colors.green,
+                ),
+                _StatCard(
+                  l10n.absentees,
+                  absent.toString(),
+                  Icons.cancel,
+                  Colors.redAccent,
+                ),
               ],
             );
           },

@@ -58,18 +58,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
   void _navigateToEditPage(EventModel eventData) {
     Navigator.of(context)
         .push<EventModel>(
-      MaterialPageRoute(
-        builder: (context) => EventEditPage(event: eventData),
-      ),
-    )
+          MaterialPageRoute(
+            builder: (context) => EventEditPage(event: eventData),
+          ),
+        )
         .then((updatedEvent) {
-      if (updatedEvent != null && mounted) {
-        setState(() {
-          _event = updatedEvent;
+          if (updatedEvent != null && mounted) {
+            setState(() {
+              _event = updatedEvent;
+            });
+            _fetchEventDetail();
+          }
         });
-        _fetchEventDetail();
-      }
-    });
   }
 
   @override
@@ -83,7 +83,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-            title: Text(e.name.isNotEmpty ? e.name : l10n.eventDetails)),
+          title: Text(e.name.isNotEmpty ? e.name : l10n.eventDetails),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -91,15 +92,19 @@ class _EventDetailPageState extends State<EventDetailPage> {
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(
-            title: Text(e.name.isNotEmpty ? e.name : l10n.eventDetails)),
+          title: Text(e.name.isNotEmpty ? e.name : l10n.eventDetails),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline,
-                    color: Colors.redAccent, size: 48),
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: 48,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   l10n.couldNotLoadEventDetails,
@@ -109,8 +114,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 Text(
                   _error!,
                   textAlign: TextAlign.center,
-                  style: text.bodySmall
-                      ?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: text.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
@@ -140,7 +146,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       status = l10n.ongoing;
       statusColor = Colors.green;
     }
-    
+
     // Then, you can also handle the raw status from API if needed for specific logic,
     // but the displayed status should be the localized one.
 
@@ -157,7 +163,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         : [
             "https://picsum.photos/seed/${e.id}/600/300",
             "https://picsum.photos/seed/${e.id}b/600/300",
-            "https://picsum.photos/seed/${e.id}c/600/300"
+            "https://picsum.photos/seed/${e.id}c/600/300",
           ];
 
     return Scaffold(
@@ -192,9 +198,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
               EventLocationCard(location: e.location),
               const SizedBox(height: 28),
               EventDescription(
-                  description: e.description?.isNotEmpty == true
-                      ? e.description
-                      : l10n.noDescription),
+                description: e.description?.isNotEmpty == true
+                    ? e.description
+                    : l10n.noDescription,
+              ),
               const SizedBox(height: 28),
               EventGallery(gallery: gallery),
               const SizedBox(height: 28),

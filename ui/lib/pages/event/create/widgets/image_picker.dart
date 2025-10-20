@@ -53,8 +53,10 @@ class _EventMultiImagePickerState extends State<EventMultiImagePicker> {
               ),
               if (_images.isNotEmpty)
                 ListTile(
-                  leading:
-                  const Icon(Icons.delete_forever, color: Colors.redAccent),
+                  leading: const Icon(
+                    Icons.delete_forever,
+                    color: Colors.redAccent,
+                  ),
                   title: const Text(
                     "Xóa tất cả ảnh",
                     style: TextStyle(color: Colors.redAccent),
@@ -143,15 +145,15 @@ class _EventMultiImagePickerState extends State<EventMultiImagePicker> {
   /// Hiển thị snackbar
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   /// Hiển thị thông tin ảnh
   String _fileInfo(File file) {
     final sizeKB = (file.lengthSync() / 1024).toStringAsFixed(1);
-    final modified =
-    DateFormat("dd/MM/yyyy HH:mm").format(file.lastModifiedSync());
+    final modified = DateFormat(
+      "dd/MM/yyyy HH:mm",
+    ).format(file.lastModifiedSync());
     return "${path.basename(file.path)} • $sizeKB KB • $modified";
   }
 
@@ -174,84 +176,93 @@ class _EventMultiImagePickerState extends State<EventMultiImagePicker> {
             padding: const EdgeInsets.all(12),
             child: _images.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_photo_alternate_outlined,
-                      size: 40, color: color.primary),
-                  const SizedBox(height: 8),
-                  Text("Chọn ảnh nơi tổ chức (tối đa 8 ảnh)",
-                      style:
-                      TextStyle(color: color.onSurfaceVariant)),
-                ],
-              ),
-            )
-                : Column(
-              children: [
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _images.length,
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                  ),
-                  itemBuilder: (context, i) {
-                    final img = _images[i];
-                    return Stack(
-                      fit: StackFit.expand,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(img, fit: BoxFit.cover),
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 40,
+                          color: color.primary,
                         ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: InkWell(
-                            onTap: () {
-                              setState(() => _images.removeAt(i));
-                              widget.onImagesSelected(_images);
-                            },
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              child: const Icon(Icons.close,
-                                  color: Colors.white, size: 16),
-                            ),
-                          ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Chọn ảnh nơi tổ chức (tối đa 8 ảnh)",
+                          style: TextStyle(color: color.onSurfaceVariant),
                         ),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Đã chọn ${_images.length}/$_maxImages ảnh",
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: color.onSurfaceVariant,
+                    ),
+                  )
+                : Column(
+                    children: [
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _images.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                            ),
+                        itemBuilder: (context, i) {
+                          final img = _images[i];
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(img, fit: BoxFit.cover),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() => _images.removeAt(i));
+                                    widget.onImagesSelected(_images);
+                                  },
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black54,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Đã chọn ${_images.length}/$_maxImages ảnh",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: color.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
         const SizedBox(height: 8),
         if (_images.isNotEmpty)
-          ..._images.map((f) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-            child: Text(
-              _fileInfo(f),
-              style: const TextStyle(fontSize: 11, color: Colors.black54),
-              overflow: TextOverflow.ellipsis,
+          ..._images.map(
+            (f) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+              child: Text(
+                _fileInfo(f),
+                style: const TextStyle(fontSize: 11, color: Colors.black54),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          )),
+          ),
       ],
     );
   }

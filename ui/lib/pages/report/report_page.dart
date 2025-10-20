@@ -1,37 +1,39 @@
 import 'dart:collection';
-
-import 'package:appflutter/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import 'package:fl_chart/fl_chart.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/analytics_model.dart';
 import '../../models/event_model.dart';
 import '../../models/event_type_guest_stat_model.dart';
 import '../../services/analytics_api_service.dart';
 import '../../services/event_api_service.dart';
+import '../../widgets/app_page_background.dart';
+import '../../widgets/modern_section_card.dart';
 import 'widgets/event_status_chart.dart';
 import 'widgets/event_type_guest_chart.dart';
-import 'widgets/monthly_event_chart.dart';
+import './widgets/monthly_event_chart.dart';
 import 'widgets/summary_card.dart';
+import './widgets/report_header_widget.dart';
 
 enum ReportFilter { all, attendees, participation }
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
-
   @override
   State<ReportPage> createState() => _ReportPageState();
 }
 
 class _ReportPageState extends State<ReportPage> {
-  final EventApiService _eventApi = EventApiService();
-  final AnalyticsApiService _analyticsApi = AnalyticsApiService();
+  final _eventApi = EventApiService();
+  final _analyticsApi = AnalyticsApiService();
 
   bool _isLoading = true;
-  String? _errorMessage;
-  List<EventModel> _events = const [];
-  List<EventGuestStatModel> _guestStats = const [];
-  List<EventTypeGuestStatModel> _eventTypeStats = const [];
+  String? _error;
+  List<EventModel> _events = [];
+  List<EventGuestStatModel> _guestStats = [];
+  List<EventTypeGuestStatModel> _eventTypeStats = [];
+  List<ParticipationTrendPoint> _participationTrend = [];
   ReportFilter _activeFilter = ReportFilter.all;
 
   @override
@@ -43,392 +45,374 @@ class _ReportPageState extends State<ReportPage> {
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _error = null;
     });
-
     try {
       final results = await Future.wait([
         _eventApi.getEvents(),
         _analyticsApi.getGuestStatsByEvent(),
         _analyticsApi.getGuestStatsByEventType(),
+        _analyticsApi.getParticipationTrend(
+          from: DateTime.now().subtract(const Duration(days: 365)),
+          to: DateTime.now(),
+          granularity: 'month',
+        ),
       ]);
-
       if (!mounted) return;
-
       setState(() {
         _events = results[0] as List<EventModel>;
         _guestStats = results[1] as List<EventGuestStatModel>;
         _eventTypeStats = results[2] as List<EventTypeGuestStatModel>;
+        _participationTrend = results[3] as List<ParticipationTrendPoint>;
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _error = e.toString();
         _isLoading = false;
       });
     }
   }
 
   int get _totalEvents => _events.length;
+  int get _totalGuests => _guestStats.fold(0, (sum, s) => sum + s.totalGuests);
+  int get _checkedIn => _guestStats.fold(0, (sum, s) => sum + s.checkedIn);
+  double get _participation =>
+      _totalGuests == 0 ? 0 : (_checkedIn / _totalGuests) * 100;
 
-  int get _totalAttendees =>
-      _guestStats.fold<int>(0, (sum, stat) => sum + stat.totalGuests);
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
 
-  int get _totalCheckedIn =>
-      _guestStats.fold<int>(0, (sum, stat) => sum + stat.checkedIn);
+    if (_isLoading) {
+      return const AppPageBackground(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-  double get _participationRate =>
-      _totalAttendees == 0 ? 0 : (_totalCheckedIn / _totalAttendees) * 100;
+    if (_error != null) {
+      return AppPageBackground(
+        child: Center(
+          child: Text(
+            l10n.loadingError(_error!),
+            style: const TextStyle(color: Colors.redAccent),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
 
-  List<EventModel> get _filteredEvents {
+    final filtered = _filterEvents();
+    final statusCounts = _statusCount(filtered);
+    final monthlyCounts = _monthlyTrend(filtered);
+    final localizedStatus = _localizedStatus(statusCounts, l10n);
+
+    return AppPageBackground(
+      child: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // 🌟 Header
+            ReportHeaderWidget(onRefresh: _loadData),
+            const SizedBox(height: 20),
+
+            // 🧭 Overview
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.eventOverview,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.reportOverviewSubtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SummaryCard(
+                          icon: Icons.event,
+                          label: l10n.totalEvents,
+                          value: _totalEvents.toString(),
+                          color: Colors.indigo,
+                          isSelected: _activeFilter == ReportFilter.all,
+                          onTap: () =>
+                              setState(() => _activeFilter = ReportFilter.all),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SummaryCard(
+                          icon: Icons.people,
+                          label: l10n.attendees,
+                          value: _totalGuests.toString(),
+                          color: Colors.green,
+                          isSelected: _activeFilter == ReportFilter.attendees,
+                          onTap: () => setState(
+                                () => _activeFilter = ReportFilter.attendees,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SummaryCard(
+                          icon: Icons.percent_rounded,
+                          label: l10n.participationPerformance,
+                          value: '${_participation.toStringAsFixed(0)}%',
+                          color: Colors.orange,
+                          isSelected:
+                          _activeFilter == ReportFilter.participation,
+                          onTap: () => setState(
+                                () => _activeFilter = ReportFilter.participation,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 📊 Chart Section
+            ModernSectionCard(
+              title: _activeFilter == ReportFilter.participation
+                  ? l10n.participationPerformance
+                  : _activeFilter == ReportFilter.attendees
+                  ? l10n.guestDistributionByEventType
+                  : l10n.eventStatusDistribution,
+              subtitle: _activeFilter == ReportFilter.participation
+                  ? l10n.performanceTrendSubtitle
+                  : null,
+              child: SizedBox(
+                height: _activeFilter == ReportFilter.participation ? 280 : 260,
+                child: Builder(
+                  builder: (context) {
+                    if (_activeFilter == ReportFilter.participation) {
+                      if (_participationTrend.isEmpty) {
+                        return Center(
+                          child: Text(
+                            l10n.noEvents,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final color =
+                          Theme.of(context).colorScheme.primary;
+                      return Padding(
+                        padding:
+                        const EdgeInsets.only(top: 8, bottom: 12, right: 4),
+                        child: LineChart(
+                          LineChartData(
+                            gridData: FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            titlesData: FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 30,
+                                  interval: 20,
+                                  getTitlesWidget: (value, _) => Text(
+                                    '${value.toInt()}%',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: Colors.grey[500]),
+                                  ),
+                                ),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  interval: 1,
+                                  reservedSize: 24,
+                                  getTitlesWidget: (value, _) {
+                                    final index = value.toInt();
+                                    if (index < 0 ||
+                                        index >= _participationTrend.length) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    final m =
+                                        _participationTrend[index].period;
+                                    return Text(
+                                      DateFormat('MM/yy').format(m),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                        color: Colors.grey[400],
+                                        fontSize: 11,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            lineBarsData: [
+                              LineChartBarData(
+                                isCurved: true,
+                                color: color,
+                                barWidth: 3,
+                                dotData: FlDotData(show: true),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      color.withOpacity(0.25),
+                                      color.withOpacity(0.05),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                                spots: _participationTrend
+                                    .asMap()
+                                    .entries
+                                    .map((e) => FlSpot(
+                                    e.key.toDouble(),
+                                    e.value.participationRate
+                                        .clamp(0, 100)
+                                        .toDouble()))
+                                    .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (_activeFilter == ReportFilter.attendees) {
+                      return EventTypeGuestChart(
+                        stats: _eventTypeStats,
+                        emptyLabel: l10n.noEvents,
+                      );
+                    }
+
+                    return EventStatusChart(
+                      statusCounts: localizedStatus,
+                      emptyLabel: l10n.noEvents,
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 📈 Monthly Trend
+            ModernSectionCard(
+              title: l10n.monthlyEventCount,
+              subtitle: l10n.monthlyEventSubtitle,
+              child: SizedBox(
+                height: 250,
+                child: MonthlyEventChart(
+                  labels: monthlyCounts.keys.toList(),
+                  values: monthlyCounts.values.toList(),
+                  emptyLabel: l10n.noEvents,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helpers
+  List<EventModel> _filterEvents() {
     switch (_activeFilter) {
       case ReportFilter.attendees:
-        final eventIds = _guestStats
-            .where((stat) => stat.totalGuests > 0)
-            .map((stat) => stat.eventId)
+        final ids = _guestStats
+            .where((s) => s.totalGuests > 0)
+            .map((s) => s.eventId)
             .toSet();
-        return _events.where((event) => eventIds.contains(event.id)).toList();
+        return _events.where((e) => ids.contains(e.id)).toList();
       case ReportFilter.participation:
-        final eventIds = _guestStats
-            .where((stat) => stat.checkedIn > 0)
-            .map((stat) => stat.eventId)
+        final ids = _guestStats
+            .where((s) => s.checkedIn > 0)
+            .map((s) => s.eventId)
             .toSet();
-        return _events.where((event) => eventIds.contains(event.id)).toList();
-      case ReportFilter.all:
+        return _events.where((e) => ids.contains(e.id)).toList();
+      default:
         return _events;
     }
   }
 
-  Map<String, int> _buildStatusCounts(Iterable<EventModel> events) {
-    final counts = <String, int>{
-      'upcoming': 0,
-      'ongoing': 0,
-      'completed': 0,
-      'other': 0,
-    };
-
-    for (final event in events) {
-      final key = _statusKey(event.status);
-      counts[key] = (counts[key] ?? 0) + 1;
+  Map<String, int> _statusCount(List<EventModel> events) {
+    final map = {'upcoming': 0, 'ongoing': 0, 'completed': 0};
+    for (final e in events) {
+      final s = e.status.toLowerCase();
+      if (s.contains('sắp')) {
+        map['upcoming'] = (map['upcoming'] ?? 0) + 1;
+      } else if (s.contains('đang')) {
+        map['ongoing'] = (map['ongoing'] ?? 0) + 1;
+      } else if (s.contains('kết')) {
+        map['completed'] = (map['completed'] ?? 0) + 1;
+      }
     }
-    return counts;
+    return map;
   }
 
-  LinkedHashMap<String, int> _buildMonthlyCounts(Iterable<EventModel> events) {
+  LinkedHashMap<String, int> _monthlyTrend(List<EventModel> fallbackEvents) {
+    if (_participationTrend.isNotEmpty) {
+      final sorted = List.of(_participationTrend)
+        ..sort((a, b) => a.period.compareTo(b.period));
+      final fmt = DateFormat('MM/yy');
+      final entries = sorted.map(
+            (point) => MapEntry(fmt.format(point.period.toLocal()), point.totalGuests),
+      );
+      final map = LinkedHashMap<String, int>.fromEntries(entries);
+      final hasNonZero = map.values.any((value) => value > 0);
+      if (hasNonZero) return map;
+    }
+    return _monthlyCount(fallbackEvents);
+  }
+
+  LinkedHashMap<String, int> _monthlyCount(List<EventModel> events) {
     final counts = <DateTime, int>{};
-    for (final event in events) {
-      final key = DateTime(event.startDate.year, event.startDate.month);
+    for (final e in events) {
+      final key = DateTime(e.startDate.year, e.startDate.month);
       counts[key] = (counts[key] ?? 0) + 1;
     }
-
-    final formatter = DateFormat('MM/yy');
-    final entries = counts.entries.toList()
+    final sorted = counts.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-
-    return LinkedHashMap<String, int>.fromEntries(
-      entries.map(
-        (entry) => MapEntry(formatter.format(entry.key), entry.value),
-      ),
+    final fmt = DateFormat('MM/yy');
+    return LinkedHashMap.fromEntries(
+      sorted.map((e) => MapEntry(fmt.format(e.key), e.value)),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final l10n = AppLocalizations.of(context)!;
-
-    final filteredEvents = _filteredEvents;
-    final statusCounts = _buildStatusCounts(filteredEvents);
-    final monthlyCounts = _buildMonthlyCounts(filteredEvents);
-    final localizedStatusCounts = _localizeStatusCounts(statusCounts, l10n);
-
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.reportsAndStatistics), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-            ? _buildErrorState(l10n, textTheme)
-            : RefreshIndicator(
-                onRefresh: _loadData,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        l10n.eventOverview,
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: color.onSurface,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSummaryRow(l10n),
-                    const SizedBox(height: 28),
-                    if (_activeFilter == ReportFilter.attendees)
-                      _buildEventTypeGuestChart(l10n, textTheme)
-                    else
-                      _buildEventStatusChart(
-                        l10n,
-                        textTheme,
-                        localizedStatusCounts,
-                      ),
-                    const SizedBox(height: 28),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        l10n.monthlyEventCount,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 260,
-                      child: MonthlyEventChart(
-                        labels: monthlyCounts.keys.toList(),
-                        values: monthlyCounts.values.toList(),
-                        emptyLabel: l10n.noEvents,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(AppLocalizations l10n) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: SummaryCard(
-            icon: Icons.event,
-            label: l10n.totalEvents,
-            value: _totalEvents.toString(),
-            color: Colors.indigo,
-            isSelected: _activeFilter == ReportFilter.all,
-            onTap: () => _setFilter(ReportFilter.all),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SummaryCard(
-            icon: Icons.people,
-            label: l10n.attendees,
-            value: _totalAttendees.toString(),
-            color: Colors.green,
-            isSelected: _activeFilter == ReportFilter.attendees,
-            onTap: () => _setFilter(ReportFilter.attendees),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SummaryCard(
-            icon: Icons.percent,
-            label: l10n.participationPerformance,
-            value: '${_participationRate.toStringAsFixed(0)}%',
-            color: Colors.orange,
-            isSelected: _activeFilter == ReportFilter.participation,
-            onTap: () => _setFilter(ReportFilter.participation),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventTypeGuestChart(AppLocalizations l10n, TextTheme textTheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(
-            l10n.guestDistributionByEventType,
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 220,
-          child: EventTypeGuestChart(
-            stats: _eventTypeStats,
-            emptyLabel: l10n.noEvents,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventStatusChart(
-    AppLocalizations l10n,
-    TextTheme textTheme,
-    Map<String, int> localizedStatusCounts,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(
-            l10n.eventStatusDistribution,
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 220,
-          child: EventStatusChart(
-            statusCounts: localizedStatusCounts,
-            emptyLabel: l10n.noEvents,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _setFilter(ReportFilter filter) {
-    if (_activeFilter == filter) return;
-    setState(() {
-      _activeFilter = filter;
-    });
-  }
-
-  Widget _buildErrorState(AppLocalizations l10n, TextTheme textTheme) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.loadingError(_errorMessage ?? ''),
-            textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(color: Colors.redAccent),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: _loadData, child: Text(l10n.retry)),
-        ],
-      ),
-    );
-  }
-
-  Map<String, int> _localizeStatusCounts(
-    Map<String, int> counts,
-    AppLocalizations l10n,
-  ) {
-    final localized = <String, int>{};
-    if ((counts['upcoming'] ?? 0) > 0) {
-      localized[l10n.upcomingEvents] = counts['upcoming']!;
-    }
-    if ((counts['ongoing'] ?? 0) > 0) {
-      localized[l10n.ongoing] = counts['ongoing']!;
-    }
-    if ((counts['completed'] ?? 0) > 0) {
-      localized[l10n.completed] = counts['completed']!;
-    }
-    final other = counts['other'] ?? 0;
-    if (other > 0) {
-      localized[l10n.unknownStatus] = other;
-    }
-    return localized;
-  }
-
-  String _statusKey(String status) {
-    final normalized = _normalize(status);
-    if (normalized.contains('sap dien ra') || normalized.contains('upcoming')) {
-      return 'upcoming';
-    }
-    if (normalized.contains('dang dien ra') || normalized.contains('ongoing')) {
-      return 'ongoing';
-    }
-    if (normalized.contains('da ket thuc') ||
-        normalized.contains('completed')) {
-      return 'completed';
-    }
-    return 'other';
-  }
-
-  String _normalize(String value) {
-    var result = value.toLowerCase();
-    const replacements = {
-      '\u0111': 'd',
-      '\u00e1': 'a',
-      '\u00e0': 'a',
-      '\u1ea3': 'a',
-      '\u00e3': 'a',
-      '\u1ea1': 'a',
-      '\u0103': 'a',
-      '\u1eaf': 'a',
-      '\u1eb1': 'a',
-      '\u1eb3': 'a',
-      '\u1eb5': 'a',
-      '\u1eb7': 'a',
-      '\u00e2': 'a',
-      '\u1ea5': 'a',
-      '\u1ea7': 'a',
-      '\u1ea9': 'a',
-      '\u1eab': 'a',
-      '\u1ead': 'a',
-      '\u00e9': 'e',
-      '\u00e8': 'e',
-      '\u1ebb': 'e',
-      '\u1ebd': 'e',
-      '\u1eb9': 'e',
-      '\u00ea': 'e',
-      '\u1ebf': 'e',
-      '\u1ec1': 'e',
-      '\u1ec3': 'e',
-      '\u1ec5': 'e',
-      '\u1ec7': 'e',
-      '\u00ed': 'i',
-      '\u00ec': 'i',
-      '\u1ec9': 'i',
-      '\u0129': 'i',
-      '\u1ecb': 'i',
-      '\u00f3': 'o',
-      '\u00f2': 'o',
-      '\u1ecf': 'o',
-      '\u00f5': 'o',
-      '\u1ecd': 'o',
-      '\u00f4': 'o',
-      '\u1ed1': 'o',
-      '\u1ed3': 'o',
-      '\u1ed5': 'o',
-      '\u1ed7': 'o',
-      '\u1ed9': 'o',
-      '\u01a1': 'o',
-      '\u1edb': 'o',
-      '\u1edd': 'o',
-      '\u1edf': 'o',
-      '\u1ee1': 'o',
-      '\u1ee3': 'o',
-      '\u00fa': 'u',
-      '\u00f9': 'u',
-      '\u1ee7': 'u',
-      '\u0169': 'u',
-      '\u1ee5': 'u',
-      '\u01b0': 'u',
-      '\u1ee9': 'u',
-      '\u1eeb': 'u',
-      '\u1eed': 'u',
-      '\u1eef': 'u',
-      '\u1ef1': 'u',
-      '\u00fd': 'y',
-      '\u1ef3': 'y',
-      '\u1ef7': 'y',
-      '\u1ef9': 'y',
-      '\u1ef5': 'y',
+  Map<String, int> _localizedStatus(
+      Map<String, int> counts,
+      AppLocalizations l10n,
+      ) {
+    return {
+      l10n.upcomingEvents: counts['upcoming'] ?? 0,
+      l10n.ongoing: counts['ongoing'] ?? 0,
+      l10n.completed: counts['completed'] ?? 0,
     };
-
-    replacements.forEach((key, value) {
-      result = result.replaceAll(key, value);
-    });
-    return result;
   }
 }

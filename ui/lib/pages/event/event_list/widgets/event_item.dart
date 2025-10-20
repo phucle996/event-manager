@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -28,18 +27,17 @@ class EventItem extends StatefulWidget {
 
 class _EventItemState extends State<EventItem>
     with SingleTickerProviderStateMixin {
-  Timer? _timer;
-  late Duration _remaining;
-  late String _statusLabel;
-  late Color _statusColor;
-  late String _timeDisplay;
-  late bool _isOngoing;
-
   late final AnimationController _slideController;
   late final DateFormat _dateFmt;
+  late String _statusLabel;
+  late Color _statusColor;
+  late bool _isOngoing;
+  late String _timeDisplay;
+  Timer? _timer;
+  Duration _remaining = Duration.zero;
 
   bool _isActionPaneOpen = false;
-  final double _actionWidth = 90.0;
+  final double _actionWidth = 90;
 
   @override
   void initState() {
@@ -54,7 +52,7 @@ class _EventItemState extends State<EventItem>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _updateStatusAndTimeline();
+    _updateStatus();
   }
 
   @override
@@ -64,91 +62,50 @@ class _EventItemState extends State<EventItem>
     super.dispose();
   }
 
-  void _updateStatusAndTimeline() {
+  // 🧭 Cập nhật trạng thái + đếm ngược
+  void _updateStatus() {
     final l10n = AppLocalizations.of(context)!;
+    final e = widget.event;
     final now = DateTime.now();
 
-    String currentStatusKey;
-    switch (widget.event.status) {
+    switch (e.status) {
       case 'Sắp diễn ra':
-        currentStatusKey = 'upcoming';
         _statusColor = Colors.indigo;
+        _statusLabel = l10n.upcomingEvents;
+        _isOngoing = false;
+        _timeDisplay = DateFormat('dd/MM').format(e.startDate);
         break;
       case 'Đang diễn ra':
-        currentStatusKey = 'ongoing';
         _statusColor = Colors.green;
+        _statusLabel = l10n.ongoing;
+        _isOngoing = true;
+        _remaining = e.endDate.difference(now);
+        _timeDisplay = _formatRemaining(l10n);
+        _startCountdown();
         break;
       case 'Đã kết thúc':
-        currentStatusKey = 'completed';
         _statusColor = Colors.grey;
-        break;
-      default:
-        currentStatusKey = 'unknown';
-        _statusColor = Colors.blueGrey;
-    }
-
-    switch (currentStatusKey) {
-      case 'upcoming':
-        _statusLabel = l10n.upcomingEvents;
-        break;
-      case 'ongoing':
-        _statusLabel = l10n.ongoing;
-        break;
-      case 'completed':
         _statusLabel = l10n.completed;
+        _isOngoing = false;
+        _timeDisplay = l10n.completedOn(_dateFmt.format(e.endDate));
         break;
       default:
-        _statusLabel = widget.event.status;
-    }
-
-    _isOngoing = (currentStatusKey == 'ongoing');
-
-    _timer?.cancel();
-    if (_isOngoing) {
-      _remaining = widget.event.endDate.difference(now);
-      _timeDisplay = _formatRemaining(l10n);
-      _startCountdown();
-    } else {
-      _timeDisplay = _formatStaticTime(l10n);
-    }
-  }
-
-  String _formatStaticTime(AppLocalizations l10n) {
-    final now = DateTime.now();
-    if (_statusLabel == l10n.upcomingEvents) {
-      final start = widget.event.startDate;
-      return (start.year != now.year)
-          ? DateFormat('dd/MM/yyyy').format(start)
-          : _dateFmt.format(start);
-    } else {
-      final end = widget.event.endDate;
-      final formattedDate = (end.year != now.year)
-          ? DateFormat('dd/MM/yyyy').format(end)
-          : _dateFmt.format(end);
-      return l10n.completedOn(formattedDate);
+        _statusColor = Colors.blueGrey;
+        _statusLabel = e.status;
+        _isOngoing = false;
+        _timeDisplay = "";
     }
   }
 
   void _startCountdown() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) {
-        _timer?.cancel();
-        return;
-      }
-
+      if (!mounted) return;
       final now = DateTime.now();
       final diff = widget.event.endDate.difference(now);
-
       if (diff.isNegative) {
         _timer?.cancel();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _isOngoing = false;
-              _updateStatusAndTimeline();
-            });
-          }
-        });
+        setState(() => _updateStatus());
       } else {
         setState(() {
           _remaining = diff;
@@ -159,77 +116,55 @@ class _EventItemState extends State<EventItem>
   }
 
   String _formatRemaining(AppLocalizations l10n) {
-    if (!_isOngoing || _remaining.isNegative) return l10n.completed;
     final d = _remaining.inDays;
     final h = _remaining.inHours.remainder(24);
     final m = _remaining.inMinutes.remainder(60);
-    final s = _remaining.inSeconds.remainder(60);
     if (d > 0) return l10n.remainingDays(d);
     if (h > 0) return l10n.remainingHours(h);
     if (m > 0) return l10n.remainingMinutes(m);
-    return l10n.remainingSeconds(s);
+    return l10n.remainingSeconds(_remaining.inSeconds.remainder(60));
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+  // 🧩 Swipe handlers
+  void _onDragUpdate(DragUpdateDetails details) {
     if (widget.isDeleting) return;
     final delta = details.primaryDelta! / (_actionWidth * 1.5);
     _slideController.value -= delta;
   }
 
-  void _onHorizontalDragEnd(DragEndDetails details) {
+  void _onDragEnd(DragEndDetails details) {
     if (widget.isDeleting) return;
-    if (_slideController.isDismissed || _slideController.isCompleted) return;
-    if (details.velocity.pixelsPerSecond.dx < -500) {
-      _openActionPane();
-    } else if (details.velocity.pixelsPerSecond.dx > 500) {
-      _closeActionPane();
+    if (details.velocity.pixelsPerSecond.dx < -400) {
+      _openPane();
+    } else if (details.velocity.pixelsPerSecond.dx > 400) {
+      _closePane();
     } else {
-      _slideController.value > 0.5 ? _openActionPane() : _closeActionPane();
+      _slideController.value > 0.5 ? _openPane() : _closePane();
     }
   }
 
-  void _openActionPane() {
-    _slideController.fling(velocity: 1.0).then((_) {
+  void _openPane() {
+    _slideController.fling(velocity: 1).then((_) {
       if (mounted) setState(() => _isActionPaneOpen = true);
     });
   }
 
-  void _closeActionPane() {
-    _slideController.fling(velocity: -1.0).then((_) {
+  void _closePane() {
+    _slideController.fling(velocity: -1).then((_) {
       if (mounted) setState(() => _isActionPaneOpen = false);
     });
   }
 
-  void _handleContentTap() {
-    if (widget.isDeleting) return;
-    if (!_isActionPaneOpen) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (_, a1, a2) => EventDetailPage(event: widget.event),
-          transitionsBuilder: (_, a1, a2, child) => SlideTransition(
-            position: Tween(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(a1),
-            child: child,
-          ),
-        ),
-      );
-    }
-  }
-
   void _handleTapUp(TapUpDetails details) {
-    if (widget.isDeleting || !_isActionPaneOpen) return;
-
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final width = renderBox?.size.width ?? 0;
-    final localDx = details.localPosition.dx;
-    if (width > 0 && localDx >= width - _actionWidth) {
-      _closeActionPane();
+    if (!_isActionPaneOpen) return;
+    final dx = details.localPosition.dx;
+    final box = context.findRenderObject() as RenderBox?;
+    final width = box?.size.width ?? 0;
+    if (dx >= width - _actionWidth) {
+      _closePane();
       widget.onDelete();
     } else {
-      _closeActionPane();
+      _closePane();
     }
   }
 
@@ -238,43 +173,129 @@ class _EventItemState extends State<EventItem>
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 
-    final itemContent = Container(
+    return Stack(
+      children: [
+        _DeleteBackground(
+          width: _actionWidth,
+          onTap: widget.isDeleting ? null : widget.onDelete,
+        ),
+        GestureDetector(
+          onHorizontalDragUpdate: _onDragUpdate,
+          onHorizontalDragEnd: _onDragEnd,
+          behavior: HitTestBehavior.translucent,
+          child: AnimatedBuilder(
+            animation: _slideController,
+            builder: (_, child) {
+              return Transform.translate(
+                offset: Offset(-_slideController.value * _actionWidth, 0),
+                child: child,
+              );
+            },
+            child: GestureDetector(
+              onTap: () {
+                if (_isActionPaneOpen) {
+                  _closePane();
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EventDetailPage(event: widget.event),
+                    ),
+                  );
+                }
+              },
+              onTapUp: _handleTapUp,
+              child: _EventCard(
+                event: widget.event,
+                statusLabel: _statusLabel,
+                statusColor: _statusColor,
+                timeDisplay: _timeDisplay,
+              ),
+            ),
+          ),
+        ),
+        if (widget.isDeleting)
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black38,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              child: Center(
+                child: SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 🧱 Card layout của Event
+class _EventCard extends StatelessWidget {
+  final EventModel event;
+  final String statusLabel;
+  final Color statusColor;
+  final String timeDisplay;
+
+  const _EventCard({
+    required this.event,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.timeDisplay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: color.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withOpacity(0.08),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
+            color: color.shadow.withOpacity(0.07),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: _statusColor.withValues(alpha: 0.15),
-            child: Icon(Icons.event, color: _statusColor),
+            radius: 22,
+            backgroundColor: statusColor.withValues(alpha: 0.12),
+            child: Icon(Icons.event_rounded, color: statusColor),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.event.name,
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  event.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
+                    color: color.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  widget.event.location,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  event.location,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySmall?.copyWith(
+                    color: color.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -283,12 +304,12 @@ class _EventItemState extends State<EventItem>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              StatusBadge(label: _statusLabel, color: _statusColor),
+              StatusBadge(label: statusLabel, color: statusColor),
               const SizedBox(height: 4),
               Text(
-                _timeDisplay,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                timeDisplay,
+                style: text.bodySmall?.copyWith(
+                  color: color.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -297,94 +318,56 @@ class _EventItemState extends State<EventItem>
         ],
       ),
     );
+  }
+}
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.red[700],
-              borderRadius: BorderRadius.circular(16),
+/// 🗑️ Nền xóa bên phải khi swipe
+class _DeleteBackground extends StatelessWidget {
+  final double width;
+  final VoidCallback? onTap;
+
+  const _DeleteBackground({required this.width, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Positioned.fill(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red[700],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(16),
+              bottomRight: Radius.circular(16),
             ),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.isDeleting
-                      ? null
-                      : () {
-                          _closeActionPane();
-                          widget.onDelete();
-                        },
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: Container(
-                    width: _actionWidth,
-                    height: double.infinity,
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.delete, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.delete,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+            child: SizedBox(
+              width: width,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.delete_rounded, color: Colors.white),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.delete,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
         ),
-        GestureDetector(
-          onHorizontalDragUpdate: _onHorizontalDragUpdate,
-          onHorizontalDragEnd: _onHorizontalDragEnd,
-          behavior: HitTestBehavior.translucent,
-          child: AnimatedBuilder(
-            animation: _slideController,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(-_slideController.value * _actionWidth, 0),
-                child: child,
-              );
-            },
-            child: GestureDetector(
-              onTap: _handleContentTap,
-              onTapUp: _handleTapUp,
-              child: itemContent,
-            ),
-          ),
-        ),
-        if (widget.isDeleting)
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: true,
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                alignment: Alignment.center,
-                child: const SizedBox(
-                  height: 26,
-                  width: 26,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

@@ -21,7 +21,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     final appLocalizations = AppLocalizations.of(context)!;
 
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      showAppToast(context, appLocalizations.newPasswordMismatch, type: ToastType.error);
+      showAppToast(
+        context,
+        appLocalizations.newPasswordMismatch,
+        type: ToastType.error,
+      );
       return;
     }
 
@@ -32,12 +36,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       await Future.delayed(const Duration(seconds: 1)); // Giả lập gọi API
 
       if (!mounted) return;
-      showAppToast(context, appLocalizations.changePasswordSuccess, type: ToastType.success);
+      showAppToast(
+        context,
+        appLocalizations.changePasswordSuccess,
+        type: ToastType.success,
+      );
       Navigator.of(context).pop();
-
     } catch (e) {
       if (!mounted) return;
-      showAppToast(context, '${appLocalizations.error}: $e', type: ToastType.error);
+      showAppToast(
+        context,
+        '${appLocalizations.error}: $e',
+        type: ToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -60,14 +71,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               TextFormField(
                 controller: _oldPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: appLocalizations.oldPassword),
-                validator: (v) => v!.isEmpty ? appLocalizations.pleaseEnterOldPassword : null,
+                decoration: InputDecoration(
+                  labelText: appLocalizations.oldPassword,
+                ),
+                validator: (v) =>
+                    v!.isEmpty ? appLocalizations.pleaseEnterOldPassword : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: appLocalizations.newPassword),
+                decoration: InputDecoration(
+                  labelText: appLocalizations.newPassword,
+                ),
                 validator: (v) {
                   if (v == null || v.length < 6) {
                     return appLocalizations.passwordTooShort;
@@ -79,14 +95,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: appLocalizations.confirmNewPassword),
-                validator: (v) => v!.isEmpty ? appLocalizations.pleaseConfirmPassword : null,
+                decoration: InputDecoration(
+                  labelText: appLocalizations.confirmNewPassword,
+                ),
+                validator: (v) =>
+                    v!.isEmpty ? appLocalizations.pleaseConfirmPassword : null,
               ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _changePassword,
-                child: _isLoading 
-                    ? const CircularProgressIndicator() 
+                child: _isLoading
+                    ? const CircularProgressIndicator()
                     : Text(appLocalizations.saveChanges),
               ),
             ],

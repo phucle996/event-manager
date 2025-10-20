@@ -19,7 +19,6 @@ class EventBasicInfo extends StatelessWidget {
     final String status = event["status"] ?? l10n.unknownStatus;
     final Color statusColor = event["color"] as Color? ?? Colors.blueGrey;
 
-
     DateTime? parseUtcToLocal(dynamic value) {
       if (value == null) return null;
       return DateTime.parse(value.toString()).toLocal();
@@ -37,11 +36,15 @@ class EventBasicInfo extends StatelessWidget {
           startDate.month == endDate.month &&
           startDate.day == endDate.day) {
         final timeRange = l10n.sameDayTimeFormat(
-            timeFmt.format(startDate), timeFmt.format(endDate));
+          timeFmt.format(startDate),
+          timeFmt.format(endDate),
+        );
         dateText = '${dateFmt.format(startDate)} ($timeRange)';
       } else {
         dateText = l10n.differentDayFormat(
-            dateFmt.format(startDate), dateFmt.format(endDate));
+          dateFmt.format(startDate),
+          dateFmt.format(endDate),
+        );
       }
     } else if (startDate != null) {
       dateText = DateFormat(l10n.fullDayFormat, locale).format(startDate);

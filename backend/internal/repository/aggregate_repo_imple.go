@@ -2,6 +2,7 @@ package repository_imple
 
 import (
 	"context"
+	"errors"
 	repository_interface "event_manager/internal/domain/repository"
 	"event_manager/internal/models"
 	"fmt"
@@ -256,4 +257,51 @@ func mapGranularity(g string) string {
 func (r *AggregateRepo) CountByEvent(ctx context.Context, eventID string) (int, error) {
 	count, err := r.col.CountDocuments(ctx, bson.M{"event_id": eventID})
 	return int(count), err
+}
+
+// AggregateGuestStatsByEvent aggregates attendance stats for a single event.
+func (r *AggregateRepo) AggregateGuestStatsByEvent(ctx context.Context, eventID string) (*models.EventStatModel, error) {
+	eventID = strings.TrimSpace(eventID)
+	if eventID == "" {
+		return nil, errors.New("event id is required")
+	}
+
+	pipeline := mongo.Pipeline{
+		{{"$match", bson.D{{"event_id", eventID}}}},
+		{{"$group", bson.D{
+			{"_id", "$event_id"},
+			{"total_guests", bson.D{{"$sum", 1}}},
+			{"checked_in", bson.D{{"$sum", bson.D{{"$cond", bson.A{"$checked_in", 1, 0}}}}}},
+		}}},
+		{{"$project", bson.D{
+			{"event_id", "$_id"},
+			{"total_guests", 1},
+			{"checked_in", 1},
+			{"absent", bson.D{{"$subtract", bson.A{"$total_guests", "$checked_in"}}}},
+		}}},
+	}
+
+	cursor, err := r.col.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	if cursor.Next(ctx) {
+		var result models.EventStatModel
+		if err := cursor.Decode(&result); err != nil {
+			return nil, err
+		}
+		return &result, nil
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return &models.EventStatModel{
+		EventID:     eventID,
+		TotalGuests: 0,
+		CheckedIn:   0,
+		Absent:      0,
+	}, nil
 }

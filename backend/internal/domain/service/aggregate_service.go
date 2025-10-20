@@ -25,4 +25,7 @@ type AggregateService interface {
 
 	// CountGuestsByEvent returns total registrations for the specified event.
 	CountGuestsByEvent(ctx context.Context, eventID string) (int, error)
+
+	// GuestStatsSummaryByEvent returns attendance statistics for the specified event.
+	GuestStatsSummaryByEvent(ctx context.Context, eventID string) (*entity.EventStat, error)
 }

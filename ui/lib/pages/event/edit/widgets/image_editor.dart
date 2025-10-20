@@ -8,7 +8,8 @@ import 'package:image_picker/image_picker.dart';
 /// Allows removing existing images and adding new ones.
 class EventImageEditor extends StatefulWidget {
   final List<String> initialImageUrls;
-  final Function(List<String> remainingUrls, List<File> newFiles) onImagesChanged;
+  final Function(List<String> remainingUrls, List<File> newFiles)
+  onImagesChanged;
 
   const EventImageEditor({
     super.key,
@@ -36,7 +37,9 @@ class _EventImageEditorState extends State<EventImageEditor> {
   }
 
   Future<void> _pickImages() async {
-    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 80);
+    final List<XFile> pickedFiles = await _picker.pickMultiImage(
+      imageQuality: 80,
+    );
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _newImages.addAll(pickedFiles.map((f) => File(f.path)));
@@ -64,7 +67,10 @@ class _EventImageEditorState extends State<EventImageEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Ảnh sự kiện", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          "Ảnh sự kiện",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         GridView.builder(
           shrinkWrap: true,
@@ -84,13 +90,19 @@ class _EventImageEditorState extends State<EventImageEditor> {
             // Display existing images from URLs
             if (index < _retainedImageUrls.length) {
               final imageUrl = _retainedImageUrls[index];
-              return _buildImageItem(Image.network(imageUrl, fit: BoxFit.cover), () => _removeUrl(index));
+              return _buildImageItem(
+                Image.network(imageUrl, fit: BoxFit.cover),
+                () => _removeUrl(index),
+              );
             }
 
             // Display new images from Files
             final newImageIndex = index - _retainedImageUrls.length;
             final imageFile = _newImages[newImageIndex];
-            return _buildImageItem(Image.file(imageFile, fit: BoxFit.cover), () => _removeNewImage(newImageIndex));
+            return _buildImageItem(
+              Image.file(imageFile, fit: BoxFit.cover),
+              () => _removeNewImage(newImageIndex),
+            );
           },
         ),
       ],

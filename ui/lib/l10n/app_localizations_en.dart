@@ -313,7 +313,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get eventListTitle => '📅 Event List';
+  String get eventListTitle => 'Event List';
 
   @override
   String get createEventSuccess => 'Event created successfully!';
@@ -565,4 +565,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loadMore => 'Load more';
+
+  @override
+  String get filterGuests => 'Filter guests';
+
+  @override
+  String get refineGuestList => 'Refine your guest list';
+
+  @override
+  String get tryAdjustingFilters =>
+      'Hãy thử thay đổi bộ lọc để xem thêm kết quả';
+
+  @override
+  String get eventListSubtitle =>
+      'View, manage, and organize your upcoming events easily.';
+
+  @override
+  String get reportOverviewSubtitle =>
+      'View and analyze your event performance.';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get noEventsFound => 'No events found.';
+
+  @override
+  String get performanceTrendSubtitle =>
+      'Xem và phân tích sự thay đổi trong hiệu suất sự kiện';
+
+  @override
+  String get monthlyEventSubtitle => 'View and analyze your event per monthly.';
 }

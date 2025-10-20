@@ -46,10 +46,9 @@ class GuestForm extends StatelessWidget {
           // 🧩 Tiêu đề
           Text(
             l10n.addGuestTitle,
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 24),
 
@@ -111,19 +110,22 @@ class GuestForm extends StatelessWidget {
             child: FilledButton(
               onPressed: isSubmitting ? null : _handleSubmit,
               style: FilledButton.styleFrom(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
               ),
               child: isSubmitting
                   ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor:
-                  AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
-                ),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          colorScheme.onPrimary,
+                        ),
+                      ),
+                    )
                   : Text(l10n.save),
             ),
           ),
@@ -153,10 +155,7 @@ class GuestForm extends StatelessWidget {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: onRetryLoadEvents,
-            child: Text(l10n.retry),
-          ),
+          TextButton(onPressed: onRetryLoadEvents, child: Text(l10n.retry)),
         ],
       );
     }
@@ -179,10 +178,10 @@ class GuestForm extends StatelessWidget {
       items: events
           .map(
             (event) => DropdownMenuItem<String>(
-          value: event.id,
-          child: Text(event.name),
-        ),
-      )
+              value: event.id,
+              child: Text(event.name),
+            ),
+          )
           .toList(),
       onChanged: onSelectEvent,
       validator: (value) {

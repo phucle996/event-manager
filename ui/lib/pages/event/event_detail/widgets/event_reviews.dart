@@ -59,7 +59,7 @@ class _EventReviewsState extends State<EventReviews> {
 
     final avg = _reviews.isNotEmpty
         ? _reviews.map((r) => r["rating"]).reduce((a, b) => a + b) /
-            _reviews.length
+              _reviews.length
         : 0.0;
     final visible = _showAllReviews ? _reviews : _reviews.take(3).toList();
 

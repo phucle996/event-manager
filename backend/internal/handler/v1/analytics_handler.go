@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"event_manager/internal/domain/entity"
 	service_interface "event_manager/internal/domain/service"
 
 	"github.com/gin-gonic/gin"
@@ -34,15 +35,30 @@ func (h *AnalyticsHandler) GetGuestCountByEvent(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
 
-	count, err := h.aggregateSvc.CountGuestsByEvent(ctx, eventID)
+	stat, err := h.aggregateSvc.GuestStatsSummaryByEvent(ctx, eventID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	if stat == nil {
+		stat = &entity.EventStat{
+			EventID:     eventID,
+			TotalGuests: 0,
+			CheckedIn:   0,
+			Absent:      0,
+		}
+	}
+
+	absent := stat.Absent
+	if absent == 0 && stat.TotalGuests >= stat.CheckedIn {
+		absent = stat.TotalGuests - stat.CheckedIn
+	}
 	response := gin.H{
-		"event_id":     eventID,
-		"total_guests": count,
+		"event_id":   eventID,
+		"registered": stat.TotalGuests,
+		"checked_in": stat.CheckedIn,
+		"absent":     absent,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": response})

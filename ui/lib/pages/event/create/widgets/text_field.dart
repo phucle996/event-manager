@@ -25,7 +25,7 @@ class EventTextField extends StatelessWidget {
       ),
       maxLines: maxLines,
       validator: (v) =>
-      v == null || v.isEmpty ? "⚠️ Không được để trống" : null,
+          v == null || v.isEmpty ? "⚠️ Không được để trống" : null,
     );
   }
 }

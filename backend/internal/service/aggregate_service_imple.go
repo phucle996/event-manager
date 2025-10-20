@@ -120,6 +120,36 @@ func mapRegistrationModels(modelsList []*models.RegistrationModel) []*entity.Reg
 	return result
 }
 
+// GuestStatsSummaryByEvent returns attendance statistics for the specified event.
+func (s *AggregateServiceImpl) GuestStatsSummaryByEvent(ctx context.Context, eventID string) (*entity.EventStat, error) {
+	if strings.TrimSpace(eventID) == "" {
+		return nil, errors.New("event id is required")
+	}
+	stat, err := s.repo.AggregateGuestStatsByEvent(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("aggregate guest stats by event failed: %w", err)
+	}
+	if stat == nil {
+		return &entity.EventStat{
+			EventID:     eventID,
+			TotalGuests: 0,
+			CheckedIn:   0,
+			Absent:      0,
+		}, nil
+	}
+
+	entityStat := models.EventStatModelToEntity(stat)
+	if entityStat == nil {
+		return &entity.EventStat{
+			EventID:     eventID,
+			TotalGuests: 0,
+			CheckedIn:   0,
+			Absent:      0,
+		}, nil
+	}
+	return entityStat, nil
+}
+
 // CountGuestsByEvent returns total registrations for the specified event.
 func (s *AggregateServiceImpl) CountGuestsByEvent(ctx context.Context, eventID string) (int, error) {
 	if strings.TrimSpace(eventID) == "" {

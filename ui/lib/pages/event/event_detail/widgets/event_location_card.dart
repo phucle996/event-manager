@@ -33,16 +33,20 @@ class EventLocationCard extends StatelessWidget {
                 title: Text(l10n.openInGoogleMaps),
                 onTap: () async {
                   final query = Uri.encodeComponent(location!);
-                  final url =
-                      Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+                  final url = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=$query',
+                  );
 
                   Navigator.pop(ctx);
 
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url);
                   } else {
-                    showAppToast(context, l10n.couldNotOpenMaps,
-                        type: ToastType.error);
+                    showAppToast(
+                      context,
+                      l10n.couldNotOpenMaps,
+                      type: ToastType.error,
+                    );
                   }
                 },
               ),
@@ -93,8 +97,9 @@ class EventLocationCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       location ?? l10n.noSpecificLocation,
-                      style: text.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w500),
+                      style: text.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],

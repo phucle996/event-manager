@@ -23,36 +23,57 @@ class _EventTypeSelectorState extends State<EventTypeSelector> {
     final l10n = AppLocalizations.of(context)!;
     final color = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Initialize _selectedType with a localized value if it's null
     _selectedType ??= l10n.eventTypeOpen;
+
+    OutlineInputBorder fintechBorder(Color borderColor) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: borderColor,
+            width: 1.2,
+          ),
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.eventType, style: text.titleMedium),
+        Text(
+          l10n.eventType,
+          style: text.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: color.onSurface,
+          ),
+        ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedType, // Use value instead of initialValue
+          value: _selectedType,
+          dropdownColor: color.surface,
           decoration: InputDecoration(
             filled: true,
             fillColor: color.surfaceContainerHighest,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
             prefixIcon: const Icon(Icons.category_outlined),
+            enabledBorder: fintechBorder(
+                isDark ? Colors.white24 : Colors.grey.shade300),
+            focusedBorder: fintechBorder(color.primary),
+            border: fintechBorder(
+                isDark ? Colors.white24 : Colors.grey.shade300),
           ),
           items: [
             DropdownMenuItem(
-                value: l10n.eventTypeOpen,
-                child: Text(l10n.eventTypeOpen)),
+              value: l10n.eventTypeOpen,
+              child: Text(l10n.eventTypeOpen),
+            ),
             DropdownMenuItem(
-                value: l10n.eventTypeLimited,
-                child: Text(l10n.eventTypeLimited)),
+              value: l10n.eventTypeLimited,
+              child: Text(l10n.eventTypeLimited),
+            ),
             DropdownMenuItem(
-                value: l10n.eventTypePrivate,
-                child: Text(l10n.eventTypePrivate)),
+              value: l10n.eventTypePrivate,
+              child: Text(l10n.eventTypePrivate),
+            ),
           ],
           onChanged: (value) {
             if (value == null) return;
@@ -70,10 +91,12 @@ class _EventTypeSelectorState extends State<EventTypeSelector> {
               prefixIcon: const Icon(Icons.people_outline),
               filled: true,
               fillColor: color.surfaceContainerHighest,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              enabledBorder: fintechBorder(
+                  isDark ? Colors.white24 : Colors.grey.shade300),
+              focusedBorder: fintechBorder(color.primary),
+              border: fintechBorder(
+                  isDark ? Colors.white24 : Colors.grey.shade300),
             ),
             validator: (value) {
               if (_selectedType == l10n.eventTypeLimited) {

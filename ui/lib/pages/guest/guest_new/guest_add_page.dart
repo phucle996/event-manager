@@ -103,10 +103,7 @@ class _GuestAddPageState extends State<GuestAddPage> {
 
       // ✅ Trả kết quả về GuestPage — KHÔNG show toast tại đây
       if (!mounted) return;
-      Navigator.of(context).pop({
-        'guest': newGuest,
-        'success': true,
-      });
+      Navigator.of(context).pop({'guest': newGuest, 'success': true});
     } catch (e) {
       if (!mounted) return;
       showAppToast(
@@ -126,9 +123,7 @@ class _GuestAddPageState extends State<GuestAddPage> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.addGuestTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.addGuestTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: GuestForm(

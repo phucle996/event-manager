@@ -9,27 +9,27 @@ class AnalyticsApiService {
   final Dio _dio;
 
   AnalyticsApiService({Dio? dio})
-      : _dio =
+    : _dio =
           dio ??
-              Dio(
-                BaseOptions(
-                  baseUrl: 'http://10.0.2.2:8080/api/v1',
-                  connectTimeout: const Duration(seconds: 8),
-                  receiveTimeout: const Duration(seconds: 8),
-                  responseType: ResponseType.json,
-                ),
-              )
-          ..interceptors.add(
-            PrettyDioLogger(
-              requestHeader: true,
-              requestBody: true,
-              responseHeader: false,
-              responseBody: true,
-              error: true,
-              compact: true,
-              maxWidth: 90,
-            ),
-          );
+                Dio(
+                  BaseOptions(
+                    baseUrl: 'http://10.0.2.2:8080/api/v1',
+                    connectTimeout: const Duration(seconds: 8),
+                    receiveTimeout: const Duration(seconds: 8),
+                    responseType: ResponseType.json,
+                  ),
+                )
+            ..interceptors.add(
+              PrettyDioLogger(
+                requestHeader: true,
+                requestBody: true,
+                responseHeader: false,
+                responseBody: true,
+                error: true,
+                compact: true,
+                maxWidth: 90,
+              ),
+            );
 
   Future<List<EventGuestStatModel>> getGuestStatsByEvent() async {
     try {
@@ -62,12 +62,51 @@ class AnalyticsApiService {
       return data
           .whereType<Map>()
           .map(
-            (e) => EventTypeGuestStatModel.fromJson(Map<String, dynamic>.from(e)),
+            (e) =>
+                EventTypeGuestStatModel.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
     } on DioException catch (e) {
       final message = e.response?.data?['error'] ?? e.message ?? 'Unknown';
       throw Exception('Failed to load event type stats: $message');
+    }
+  }
+
+  Future<List<ParticipationTrendPoint>> getParticipationTrend({
+    DateTime? from,
+    DateTime? to,
+    String granularity = 'month',
+  }) async {
+    try {
+      final query = <String, dynamic>{'granularity': granularity};
+      if (from != null) {
+        query['from'] = from.toUtc().toIso8601String();
+      }
+      if (to != null) {
+        query['to'] = to.toUtc().toIso8601String();
+      }
+
+      final response = await _dio.get(
+        '/analytics/participation',
+        queryParameters: query,
+      );
+
+      final raw = _normalizeBody(response.data);
+      final data = raw is Map<String, dynamic> ? raw['data'] : raw;
+      if (data is! List) {
+        return const [];
+      }
+
+      return data
+          .whereType<Map>()
+          .map(
+            (e) =>
+                ParticipationTrendPoint.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      final message = e.response?.data?['error'] ?? e.message ?? 'Unknown';
+      throw Exception('Failed to load participation trend: $message');
     }
   }
 

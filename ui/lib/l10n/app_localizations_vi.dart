@@ -268,7 +268,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get allTime => 'Tất cả thời gian';
 
   @override
-  String get createEvent => 'Tạo sự kiện';
+  String get createEvent => 'Thêm sự kiện';
 
   @override
   String get thisMonth => 'Tháng này';
@@ -314,7 +314,7 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get eventListTitle => '📅 Danh sách sự kiện';
+  String get eventListTitle => 'Danh sách sự kiện';
 
   @override
   String get createEventSuccess => 'Tạo sự kiện thành công!';
@@ -566,4 +566,37 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get loadMore => 'Load more';
+
+  @override
+  String get filterGuests => 'Bộ lọc khách mời';
+
+  @override
+  String get refineGuestList =>
+      'Tinh chỉnh danh sách khách theo tiêu chí bạn muốn';
+
+  @override
+  String get tryAdjustingFilters =>
+      'Try adjusting your filters to find more results';
+
+  @override
+  String get eventListSubtitle =>
+      'Xem, quản lý và sắp xếp các sự kiện sắp diễn ra của bạn.';
+
+  @override
+  String get reportOverviewSubtitle =>
+      'Xem và phân tích hiệu suất sự kiện của bạn';
+
+  @override
+  String get refresh => 'Làm mới';
+
+  @override
+  String get noEventsFound => 'No events found.';
+
+  @override
+  String get performanceTrendSubtitle =>
+      'Xem và phân tích sự thay đổi trong hiệu suất sự kiện';
+
+  @override
+  String get monthlyEventSubtitle =>
+      'Xem và phân tích hiệu suất sự kiện theo tháng';
 }
