@@ -3,11 +3,12 @@ package repository_imple
 import (
 	"context"
 	"errors"
-	repository_interface "event_manager/internal/domain/repository"
-	"event_manager/internal/models"
 	"fmt"
 	"strings"
 	"time"
+
+	repository_interface "event_manager/internal/domain/repository"
+	"event_manager/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,7 +25,7 @@ func NewAggregateRepo(db *mongo.Database) repository_interface.AggregateRepo {
 }
 
 // ======================================================
-// 📊 1️⃣ Thống kê số khách theo loại sự kiện (Event Type)
+// Thống kê số khách theo loại sự kiện (Event Type)
 // ======================================================
 func (r *AggregateRepo) AggregateGuestCountByEventType(ctx context.Context) ([]*models.EventTypeGuestAggregation, error) {
 	jsonPipeline := `
@@ -184,7 +185,7 @@ func (r *AggregateRepo) AggregateGuestCountByLocation(ctx context.Context) ([]*m
 }
 
 // ======================================================
-// 📊 4️⃣ Xu hướng tham gia theo thời gian (Trend)
+// Xu hướng tham gia theo thời gian (Trend)
 // ======================================================
 func (r *AggregateRepo) AggregateParticipationTrend(ctx context.Context, from, to time.Time, granularity string) ([]*models.ParticipationTrendAggregation, error) {
 	unit := mapGranularity(granularity)

@@ -583,8 +583,20 @@ class AppLocalizationsVi extends AppLocalizations {
       'Xem, quản lý và sắp xếp các sự kiện sắp diễn ra của bạn.';
 
   @override
+  String get eventListOfflineSubtitle =>
+      'Bạn đang ngoại tuyến. Danh sách sự kiện chỉ hiển thị dữ liệu đã lưu.';
+
+  @override
+  String get guestListOfflineSubtitle =>
+      'Bạn đang ngoại tuyến. Danh sách khách chỉ hiển thị dữ liệu đã lưu.';
+
+  @override
   String get reportOverviewSubtitle =>
       'Xem và phân tích hiệu suất sự kiện của bạn';
+
+  @override
+  String get offlineBanner =>
+      'Bạn đang ngoại tuyến. Đang hiển thị dữ liệu đã lưu, các thao tác chỉnh sửa bị vô hiệu hóa.';
 
   @override
   String get refresh => 'Làm mới';

@@ -12,6 +12,7 @@ class EventItem extends StatefulWidget {
   final int index;
   final VoidCallback onDelete;
   final bool isDeleting;
+  final bool canDelete;
 
   const EventItem({
     super.key,
@@ -19,6 +20,7 @@ class EventItem extends StatefulWidget {
     required this.index,
     required this.onDelete,
     this.isDeleting = false,
+    this.canDelete = true,
   });
 
   @override
@@ -127,13 +129,13 @@ class _EventItemState extends State<EventItem>
 
   // 🧩 Swipe handlers
   void _onDragUpdate(DragUpdateDetails details) {
-    if (widget.isDeleting) return;
+    if (widget.isDeleting || !widget.canDelete) return;
     final delta = details.primaryDelta! / (_actionWidth * 1.5);
     _slideController.value -= delta;
   }
 
   void _onDragEnd(DragEndDetails details) {
-    if (widget.isDeleting) return;
+    if (widget.isDeleting || !widget.canDelete) return;
     if (details.velocity.pixelsPerSecond.dx < -400) {
       _openPane();
     } else if (details.velocity.pixelsPerSecond.dx > 400) {
@@ -177,11 +179,13 @@ class _EventItemState extends State<EventItem>
       children: [
         _DeleteBackground(
           width: _actionWidth,
-          onTap: widget.isDeleting ? null : widget.onDelete,
+          onTap: widget.isDeleting || !widget.canDelete
+              ? null
+              : widget.onDelete,
         ),
         GestureDetector(
-          onHorizontalDragUpdate: _onDragUpdate,
-          onHorizontalDragEnd: _onDragEnd,
+          onHorizontalDragUpdate: widget.canDelete ? _onDragUpdate : null,
+          onHorizontalDragEnd: widget.canDelete ? _onDragEnd : null,
           behavior: HitTestBehavior.translucent,
           child: AnimatedBuilder(
             animation: _slideController,

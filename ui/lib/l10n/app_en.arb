@@ -229,10 +229,11 @@
   "eventListTitle": "Event List",
 
   "eventListSubtitle": "View, manage, and organize your upcoming events easily.",
-  "eventListTitle": "Event List",
-  "eventListSubtitle": "View, manage, and organize your upcoming events easily.",
+  "eventListOfflineSubtitle": "You're offline. Viewing cached events list only.",
+  "guestListOfflineSubtitle": "You're offline. Showing cached guests list only.",
   "createEvent": "Create Event",
   "reportOverviewSubtitle": "View and analyze your event performance.",
+  "offlineBanner": "You're offline. Showing cached data; editing is disabled.",
 
   "refresh": "Refresh",
   "noEventsFound": "No events found.",

@@ -64,8 +64,7 @@ class MonthlyEventChart extends StatelessWidget {
       );
     }
 
-    final maxValue =
-    filledValues.reduce((a, b) => a > b ? a : b).toDouble();
+    final maxValue = filledValues.reduce((a, b) => a > b ? a : b).toDouble();
     final double maxY = maxValue == 0 ? 1.0 : maxValue * 1.3;
 
     // 📊 Biểu đồ cột 12 tháng gần nhất
@@ -79,8 +78,12 @@ class MonthlyEventChart extends StatelessWidget {
           gridData: FlGridData(show: false),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -140,8 +143,10 @@ class MonthlyEventChart extends StatelessWidget {
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
-              tooltipPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              tooltipPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
               tooltipMargin: 8,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final month = filledLabels[group.x.toInt()];

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../../l10n/app_localizations.dart';
+import '../../../data/local/cache_database.dart';
+import '../../../models/analytics_model.dart';
 import '../../../models/event_model.dart';
+import '../../../providers/connectivity_provider.dart';
 import '../../../services/event_api_service.dart';
 import '../edit/main_page.dart';
 
@@ -27,6 +32,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
   bool _isLoading = true;
   EventModel? _event;
   String? _error;
+  bool _isOffline = false;
+  Map<String, int>? _cachedStats;
 
   @override
   void initState() {
@@ -41,17 +48,42 @@ class _EventDetailPageState extends State<EventDetailPage> {
     });
     try {
       final res = await _api.getEventById(widget.event.id);
+      await CacheDatabase.instance.cacheEvent(res);
       if (!mounted) return;
       setState(() {
         _event = res;
         _isLoading = false;
+        _isOffline = false;
+        _cachedStats = null;
       });
     } catch (e) {
+      final cachedEvent = await CacheDatabase.instance.getCachedEventById(
+        widget.event.id,
+      );
+      final cachedStat = await CacheDatabase.instance
+          .getCachedGuestStatsByEvent(widget.event.id);
       if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (cachedEvent != null) {
+        setState(() {
+          _event = cachedEvent;
+          _isLoading = false;
+          _isOffline = true;
+          _error = null;
+          if (cachedStat != null) {
+            _cachedStats = {
+              'registered': cachedStat.totalGuests,
+              'checked_in': cachedStat.checkedIn,
+            };
+          } else {
+            _cachedStats = null;
+          }
+        });
+      } else {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -77,6 +109,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = _isOffline || !connectivity.isOnline;
 
     final e = _event ?? widget.event;
 
@@ -170,7 +204,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       appBar: AppBar(
         title: Text(e.name, overflow: TextOverflow.ellipsis),
         actions: [
-          if (!_isReadOnly(status)) // Pass the localized status
+          if (!_isReadOnly(status) && !isOffline)
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: l10n.editEvent,
@@ -191,9 +225,23 @@ class _EventDetailPageState extends State<EventDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (isOffline)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    l10n.offlineBanner,
+                    style: text.bodySmall?.copyWith(
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
               EventBasicInfo(event: eventForBasicInfo),
               const SizedBox(height: 24),
-              EventStatsSection(eventId: e.id),
+              EventStatsSection(
+                eventId: e.id,
+                isOffline: isOffline,
+                initialStats: _cachedStats,
+              ),
               const SizedBox(height: 28),
               EventLocationCard(location: e.location),
               const SizedBox(height: 28),

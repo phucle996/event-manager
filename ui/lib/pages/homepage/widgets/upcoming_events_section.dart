@@ -9,10 +9,12 @@ class UpcomingEventsSection extends StatelessWidget {
     super.key,
     required this.events,
     this.onEventTap,
+    this.isOffline = false,
   });
 
   final List<EventModel> events;
   final void Function(EventModel event)? onEventTap;
+  final bool isOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +33,14 @@ class UpcomingEventsSection extends StatelessWidget {
 
     return ModernSectionCard(
       title: 'Sự kiện sắp diễn ra',
+      subtitle: isOffline ? 'Dữ liệu ngoại tuyến (chỉ xem)' : null,
       child: Column(
         children: [
           for (final event in events)
             _EventTile(
               key: ValueKey(event.id),
               event: event,
-              onTap: () => onEventTap?.call(event),
+              onTap: isOffline ? null : () => onEventTap?.call(event),
             ),
         ],
       ),

@@ -1166,11 +1166,29 @@ abstract class AppLocalizations {
   /// **'View, manage, and organize your upcoming events easily.'**
   String get eventListSubtitle;
 
+  /// No description provided for @eventListOfflineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Viewing cached events list only.'**
+  String get eventListOfflineSubtitle;
+
+  /// No description provided for @guestListOfflineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Showing cached guests list only.'**
+  String get guestListOfflineSubtitle;
+
   /// No description provided for @reportOverviewSubtitle.
   ///
   /// In en, this message translates to:
   /// **'View and analyze your event performance.'**
   String get reportOverviewSubtitle;
+
+  /// No description provided for @offlineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Showing cached data; editing is disabled.'**
+  String get offlineBanner;
 
   /// No description provided for @refresh.
   ///

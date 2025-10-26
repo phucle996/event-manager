@@ -581,8 +581,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'View, manage, and organize your upcoming events easily.';
 
   @override
+  String get eventListOfflineSubtitle =>
+      'You\'re offline. Viewing cached events list only.';
+
+  @override
+  String get guestListOfflineSubtitle =>
+      'You\'re offline. Showing cached guests list only.';
+
+  @override
   String get reportOverviewSubtitle =>
       'View and analyze your event performance.';
+
+  @override
+  String get offlineBanner =>
+      'You\'re offline. Showing cached data; editing is disabled.';
 
   @override
   String get refresh => 'Refresh';

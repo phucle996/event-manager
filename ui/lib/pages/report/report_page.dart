@@ -1,13 +1,14 @@
 import 'dart:collection';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/analytics_model.dart';
 import '../../models/event_model.dart';
 import '../../models/event_type_guest_stat_model.dart';
-import '../../services/analytics_api_service.dart';
-import '../../services/event_api_service.dart';
+import '../../providers/connectivity_provider.dart';
+import '../../repositories/dashboard_repository.dart';
 import '../../widgets/app_page_background.dart';
 import '../../widgets/modern_section_card.dart';
 import 'widgets/event_status_chart.dart';
@@ -25,8 +26,7 @@ class ReportPage extends StatefulWidget {
 }
 
 class _ReportPageState extends State<ReportPage> {
-  final _eventApi = EventApiService();
-  final _analyticsApi = AnalyticsApiService();
+  final DashboardRepository _repository = DashboardRepository();
 
   bool _isLoading = true;
   String? _error;
@@ -35,6 +35,7 @@ class _ReportPageState extends State<ReportPage> {
   List<EventTypeGuestStatModel> _eventTypeStats = [];
   List<ParticipationTrendPoint> _participationTrend = [];
   ReportFilter _activeFilter = ReportFilter.all;
+  bool _isOfflineData = false;
 
   @override
   void initState() {
@@ -48,22 +49,14 @@ class _ReportPageState extends State<ReportPage> {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        _eventApi.getEvents(),
-        _analyticsApi.getGuestStatsByEvent(),
-        _analyticsApi.getGuestStatsByEventType(),
-        _analyticsApi.getParticipationTrend(
-          from: DateTime.now().subtract(const Duration(days: 365)),
-          to: DateTime.now(),
-          granularity: 'month',
-        ),
-      ]);
+      final result = await _repository.loadDashboard();
       if (!mounted) return;
       setState(() {
-        _events = results[0] as List<EventModel>;
-        _guestStats = results[1] as List<EventGuestStatModel>;
-        _eventTypeStats = results[2] as List<EventTypeGuestStatModel>;
-        _participationTrend = results[3] as List<ParticipationTrendPoint>;
+        _events = result.events;
+        _guestStats = result.guestStats;
+        _eventTypeStats = result.eventTypeStats;
+        _participationTrend = result.participationTrend;
+        _isOfflineData = result.fromCache;
         _isLoading = false;
       });
     } catch (e) {
@@ -107,6 +100,9 @@ class _ReportPageState extends State<ReportPage> {
     final monthlyCounts = _monthlyTrend(filtered);
     final localizedStatus = _localizedStatus(statusCounts, l10n);
 
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = _isOfflineData || !connectivity.isOnline;
+
     return AppPageBackground(
       child: RefreshIndicator(
         onRefresh: _loadData,
@@ -115,6 +111,20 @@ class _ReportPageState extends State<ReportPage> {
           children: [
             // 🌟 Header
             ReportHeaderWidget(onRefresh: _loadData),
+            if (isOffline)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Text(
+                  l10n.offlineBanner,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange.shade700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             const SizedBox(height: 20),
 
             // 🧭 Overview
@@ -160,7 +170,7 @@ class _ReportPageState extends State<ReportPage> {
                           color: Colors.green,
                           isSelected: _activeFilter == ReportFilter.attendees,
                           onTap: () => setState(
-                                () => _activeFilter = ReportFilter.attendees,
+                            () => _activeFilter = ReportFilter.attendees,
                           ),
                         ),
                       ),
@@ -172,9 +182,9 @@ class _ReportPageState extends State<ReportPage> {
                           value: '${_participation.toStringAsFixed(0)}%',
                           color: Colors.orange,
                           isSelected:
-                          _activeFilter == ReportFilter.participation,
+                              _activeFilter == ReportFilter.participation,
                           onTap: () => setState(
-                                () => _activeFilter = ReportFilter.participation,
+                            () => _activeFilter = ReportFilter.participation,
                           ),
                         ),
                       ),
@@ -204,23 +214,23 @@ class _ReportPageState extends State<ReportPage> {
                         return Center(
                           child: Text(
                             l10n.noEvents,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         );
                       }
 
-                      final color =
-                          Theme.of(context).colorScheme.primary;
+                      final color = Theme.of(context).colorScheme.primary;
                       return Padding(
-                        padding:
-                        const EdgeInsets.only(top: 8, bottom: 12, right: 4),
+                        padding: const EdgeInsets.only(
+                          top: 8,
+                          bottom: 12,
+                          right: 4,
+                        ),
                         child: LineChart(
                           LineChartData(
                             gridData: FlGridData(show: false),
@@ -233,9 +243,7 @@ class _ReportPageState extends State<ReportPage> {
                                   interval: 20,
                                   getTitlesWidget: (value, _) => Text(
                                     '${value.toInt()}%',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
+                                    style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(color: Colors.grey[500]),
                                   ),
                                 ),
@@ -251,25 +259,26 @@ class _ReportPageState extends State<ReportPage> {
                                         index >= _participationTrend.length) {
                                       return const SizedBox.shrink();
                                     }
-                                    final m =
-                                        _participationTrend[index].period;
+                                    final m = _participationTrend[index].period;
                                     return Text(
                                       DateFormat('MM/yy').format(m),
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
                                           ?.copyWith(
-                                        color: Colors.grey[400],
-                                        fontSize: 11,
-                                      ),
+                                            color: Colors.grey[400],
+                                            fontSize: 11,
+                                          ),
                                     );
                                   },
                                 ),
                               ),
                               rightTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
                               topTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
                             ),
                             lineBarsData: [
                               LineChartBarData(
@@ -291,11 +300,14 @@ class _ReportPageState extends State<ReportPage> {
                                 spots: _participationTrend
                                     .asMap()
                                     .entries
-                                    .map((e) => FlSpot(
-                                    e.key.toDouble(),
-                                    e.value.participationRate
-                                        .clamp(0, 100)
-                                        .toDouble()))
+                                    .map(
+                                      (e) => FlSpot(
+                                        e.key.toDouble(),
+                                        e.value.participationRate
+                                            .clamp(0, 100)
+                                            .toDouble(),
+                                      ),
+                                    )
                                     .toList(),
                               ),
                             ],
@@ -382,7 +394,8 @@ class _ReportPageState extends State<ReportPage> {
         ..sort((a, b) => a.period.compareTo(b.period));
       final fmt = DateFormat('MM/yy');
       final entries = sorted.map(
-            (point) => MapEntry(fmt.format(point.period.toLocal()), point.totalGuests),
+        (point) =>
+            MapEntry(fmt.format(point.period.toLocal()), point.totalGuests),
       );
       final map = LinkedHashMap<String, int>.fromEntries(entries);
       final hasNonZero = map.values.any((value) => value > 0);
@@ -406,9 +419,9 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   Map<String, int> _localizedStatus(
-      Map<String, int> counts,
-      AppLocalizations l10n,
-      ) {
+    Map<String, int> counts,
+    AppLocalizations l10n,
+  ) {
     return {
       l10n.upcomingEvents: counts['upcoming'] ?? 0,
       l10n.ongoing: counts['ongoing'] ?? 0,

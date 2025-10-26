@@ -5,6 +5,7 @@ class GuestHeaderStats extends StatelessWidget {
   final int attended;
   final int pending;
   final VoidCallback onAddGuest;
+  final bool isOffline;
 
   const GuestHeaderStats({
     super.key,
@@ -12,6 +13,7 @@ class GuestHeaderStats extends StatelessWidget {
     required this.attended,
     required this.pending,
     required this.onAddGuest,
+    this.isOffline = false,
   });
 
   @override
@@ -45,8 +47,11 @@ class GuestHeaderStats extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.people_alt_rounded,
-                    color: Colors.white, size: 32),
+                const Icon(
+                  Icons.people_alt_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -58,7 +63,7 @@ class GuestHeaderStats extends StatelessWidget {
                   ),
                 ),
                 FilledButton(
-                  onPressed: onAddGuest,
+                  onPressed: isOffline ? null : onAddGuest,
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: color.primary,

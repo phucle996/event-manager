@@ -4,7 +4,9 @@ import 'package:appflutter/pages/guest/guest_new/guest_add_page.dart';
 import 'package:appflutter/pages/report/report_page.dart';
 
 class QuickActions extends StatelessWidget {
-  const QuickActions({super.key});
+  const QuickActions({super.key, required this.isOffline});
+
+  final bool isOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -20,17 +22,21 @@ class QuickActions extends StatelessWidget {
             icon: Icons.add_box_rounded,
             label: 'Tạo sự kiện',
             color: color.primary,
-            onTap: () async {
-              final created = await Navigator.push(
-                context,
-                _slidePage(const EventCreatePage()),
-              );
-              if (created != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('🎉 Sự kiện đã được tạo thành công!')),
-                );
-              }
-            },
+            onTap: isOffline
+                ? () => _showOfflineMessage(context)
+                : () async {
+                    final created = await Navigator.push(
+                      context,
+                      _slidePage(const EventCreatePage()),
+                    );
+                    if (created != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🎉 Sự kiện đã được tạo thành công!'),
+                        ),
+                      );
+                    }
+                  },
           ),
 
           // 🟢 Mời khách → sang trang tạo khách mời
@@ -38,9 +44,11 @@ class QuickActions extends StatelessWidget {
             icon: Icons.people_alt_rounded,
             label: 'Mời khách',
             color: color.primary,
-            onTap: () {
-              Navigator.push(context, _slidePage(const GuestAddPage()));
-            },
+            onTap: isOffline
+                ? () => _showOfflineMessage(context)
+                : () {
+                    Navigator.push(context, _slidePage(const GuestAddPage()));
+                  },
           ),
 
           // 🟢 Báo cáo → sang trang thống kê
@@ -60,11 +68,21 @@ class QuickActions extends StatelessWidget {
             color: color.primary,
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('🔔 Tính năng thông báo đang phát triển...')),
+                const SnackBar(
+                  content: Text('🔔 Tính năng thông báo đang phát triển...'),
+                ),
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _showOfflineMessage(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🚫 Không thể thực hiện khi đang ngoại tuyến.'),
       ),
     );
   }
@@ -79,7 +97,10 @@ class QuickActions extends StatelessWidget {
         const begin = Offset(1.0, 0.0); // trượt từ phải qua
         const end = Offset.zero;
         const curve = Curves.easeOutCubic;
-        final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        final tween = Tween(
+          begin: begin,
+          end: end,
+        ).chain(CurveTween(curve: curve));
         return SlideTransition(position: animation.drive(tween), child: child);
       },
     );

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../data/local/cache_database.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../models/event_model.dart';
+import '../../../providers/connectivity_provider.dart';
 import '../../../services/event_api_service.dart';
 import '../../../utils/app_toast.dart';
 import '../../../widgets/app_page_background.dart';
 import '../create/main_page.dart';
-import './widgets/event_item.dart';
 import './widgets/event_filter_bar.dart';
 import './widgets/event_header.dart';
+import './widgets/event_item.dart';
 
 class EventListPage extends StatefulWidget {
   const EventListPage({super.key});
@@ -30,6 +34,7 @@ class _EventListPageState extends State<EventListPage> {
   bool _isLoading = true;
   String? _errorMessage;
   String? _deletingEventId;
+  bool _isOfflineData = false;
 
   @override
   void initState() {
@@ -85,17 +90,34 @@ class _EventListPageState extends State<EventListPage> {
       setState(() {
         _events = data;
         _isLoading = false;
+        _isOfflineData = false;
       });
+      await CacheDatabase.instance.cacheEvents(data);
     } catch (e) {
+      final cached = await CacheDatabase.instance.getCachedEvents();
       if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (cached.isNotEmpty) {
+        setState(() {
+          _events = cached;
+          _isLoading = false;
+          _isOfflineData = true;
+          _errorMessage = null;
+        });
+      } else {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _navigateToCreatePage() async {
+    if (_isOfflineMode()) {
+      _showOfflineMessage();
+      return;
+    }
+
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
@@ -106,7 +128,10 @@ class _EventListPageState extends State<EventListPage> {
             begin: const Offset(1, 0),
             end: Offset.zero,
           ).chain(CurveTween(curve: Curves.easeOutCubic));
-          return SlideTransition(position: animation.drive(tween), child: child);
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
         },
       ),
     );
@@ -120,6 +145,11 @@ class _EventListPageState extends State<EventListPage> {
   }
 
   Future<void> _confirmDelete(EventModel event) async {
+    if (_isOfflineMode()) {
+      _showOfflineMessage();
+      return;
+    }
+
     final l10n = AppLocalizations.of(context)!;
     final materialL10n = MaterialLocalizations.of(context);
     final confirmed = await showDialog<bool>(
@@ -162,7 +192,11 @@ class _EventListPageState extends State<EventListPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _deletingEventId = null);
-      showAppToast(context, l10n.deleteError(e.toString()), type: ToastType.error);
+      showAppToast(
+        context,
+        l10n.deleteError(e.toString()),
+        type: ToastType.error,
+      );
     }
   }
 
@@ -211,6 +245,8 @@ class _EventListPageState extends State<EventListPage> {
 
     final visibleEvents = filtered.take(_visibleCount).toList();
     final hasMore = _visibleCount < filtered.length;
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = _isOfflineData || !connectivity.isOnline;
 
     if (_isLoading) {
       return const AppPageBackground(
@@ -242,7 +278,28 @@ class _EventListPageState extends State<EventListPage> {
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: EventHeader(onCreateEvent: _navigateToCreatePage),
+            child: Column(
+              children: [
+                EventHeader(
+                  onCreateEvent: _navigateToCreatePage,
+                  isOffline: isOffline,
+                ),
+                if (isOffline)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      l10n.eventListOfflineSubtitle,
+                      style: text.bodySmall?.copyWith(
+                        color: Colors.orange.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
@@ -294,6 +351,7 @@ class _EventListPageState extends State<EventListPage> {
                         index: visibleEvents.indexOf(event),
                         isDeleting: event.id == _deletingEventId,
                         onDelete: () => _confirmDelete(event),
+                        canDelete: !isOffline,
                       ),
                     );
                   }),
@@ -309,6 +367,19 @@ class _EventListPageState extends State<EventListPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  bool _isOfflineMode() {
+    final connectivity = context.read<ConnectivityProvider>();
+    return _isOfflineData || !connectivity.isOnline;
+  }
+
+  void _showOfflineMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🚫 Không thể thực hiện khi đang ngoại tuyến.'),
       ),
     );
   }

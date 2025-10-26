@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../l10n/app_localizations.dart';
 import '../../models/analytics_model.dart';
 import '../../models/event_model.dart';
-import '../../services/analytics_api_service.dart';
-import '../../services/event_api_service.dart';
+import '../../providers/connectivity_provider.dart';
+import '../../repositories/dashboard_repository.dart';
 import '../../widgets/app_page_background.dart';
 import '../event/event_detail/event_detail_page.dart';
 import 'widgets/featured_event_banner.dart';
@@ -20,13 +23,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final EventApiService _eventApi = EventApiService();
-  final AnalyticsApiService _analyticsApi = AnalyticsApiService();
+  final DashboardRepository _repository = DashboardRepository();
 
   bool _isLoading = true;
   String? _errorMessage;
   List<EventModel> _events = const [];
   List<EventGuestStatModel> _guestStats = const [];
+  bool _isOfflineData = false;
 
   @override
   void initState() {
@@ -41,15 +44,12 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final results = await Future.wait([
-        _eventApi.getEvents(),
-        _analyticsApi.getGuestStatsByEvent(),
-      ]);
-
+      final result = await _repository.loadDashboard();
       if (!mounted) return;
       setState(() {
-        _events = results[0] as List<EventModel>;
-        _guestStats = results[1] as List<EventGuestStatModel>;
+        _events = result.events;
+        _guestStats = result.guestStats;
+        _isOfflineData = result.fromCache;
         _isLoading = false;
       });
     } catch (e) {
@@ -127,11 +127,25 @@ class _HomePageState extends State<HomePage> {
 
     final featuredEvent = _featuredEvent;
     final upcomingEvents = _upcomingEvents.take(5).toList();
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = _isOfflineData || !connectivity.isOnline;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       children: [
         const HeroHeader(),
-        const QuickActions(),
+        QuickActions(isOffline: isOffline),
+        if (isOffline)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              l10n.offlineBanner,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.orange.shade700),
+              textAlign: TextAlign.center,
+            ),
+          ),
         const SizedBox(height: 20),
         StatsOverview(
           totalEvents: _totalEvents,
@@ -147,6 +161,7 @@ class _HomePageState extends State<HomePage> {
         UpcomingEventsSection(
           events: upcomingEvents,
           onEventTap: _openEventDetail,
+          isOffline: isOffline,
         ),
         const TipsNewsSection(),
       ],

@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+
 import '../../../../l10n/app_localizations.dart';
 import '../../../../services/event_api_service.dart';
 
 class EventStatsSection extends StatefulWidget {
   final String eventId;
-  const EventStatsSection({super.key, required this.eventId});
+  final bool isOffline;
+  final Map<String, int>? initialStats;
+
+  const EventStatsSection({
+    super.key,
+    required this.eventId,
+    this.isOffline = false,
+    this.initialStats,
+  });
 
   @override
   State<EventStatsSection> createState() => _EventStatsSectionState();
@@ -20,9 +29,15 @@ class _EventStatsSectionState extends State<EventStatsSection> {
   }
 
   void _loadStats() {
-    setState(() {
-      _statsFuture = EventApiService().getGuestStats(widget.eventId);
-    });
+    if (widget.isOffline) {
+      setState(() {
+        _statsFuture = Future.value(widget.initialStats ?? const {});
+      });
+    } else {
+      setState(() {
+        _statsFuture = EventApiService().getGuestStats(widget.eventId);
+      });
+    }
   }
 
   @override
@@ -56,6 +71,17 @@ class _EventStatsSectionState extends State<EventStatsSection> {
             final registered = stats['registered'] ?? 0;
             final checkedIn = stats['checked_in'] ?? 0;
             final absent = registered - checkedIn;
+
+            if (widget.isOffline && stats.isEmpty) {
+              return Center(
+                child: Text(
+                  l10n.noGuestsFound,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+              );
+            }
 
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,

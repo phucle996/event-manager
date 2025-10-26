@@ -1,22 +1,22 @@
 package models
 
 import (
-	"event_manager/internal/domain/entity"
 	"time"
+
+	"event_manager/internal/domain/entity"
 )
 
-// Model lưu trong DB hoặc trả về API
 type EventModel struct {
 	ID          string    `bson:"_id,omitempty" json:"id"`
 	Name        string    `bson:"name" json:"name"`
 	Description string    `bson:"description" json:"description"`
-	Type        string    `bson:"type" json:"type"` // "Sự kiện mở", "Sự kiện giới hạn", ...
+	Type        string    `bson:"type" json:"type"`
 	Status      string    `bson:"status" json:"status"`
 	Location    string    `bson:"location" json:"location"`
 	MaxGuests   uint      `bson:"max_guests" json:"max_guests"`
 	StartDate   time.Time `bson:"start_date" json:"start_date"`
 	EndDate     time.Time `bson:"end_date" json:"end_date"`
-	ImageURLs   []string  `bson:"image_urls" json:"image_urls"` // Danh sách ảnh sự kiện
+	ImageURLs   []string  `bson:"image_urls" json:"image_urls"`
 	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
 }

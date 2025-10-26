@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:appflutter/l10n/app_localizations.dart';
 
 import '../guest_new/guest_add_page.dart';
+import '../../../data/local/cache_database.dart';
 import '../../../models/guest_model.dart';
+import '../../../providers/connectivity_provider.dart';
 import '../../../services/guest_api_service.dart';
 import '../../../utils/app_toast.dart';
 import '../../../widgets/app_page_background.dart';
@@ -30,6 +33,7 @@ class _GuestPageState extends State<GuestPage> {
   List<GuestModel> _guests = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isOfflineData = false;
 
   Map<String, String> _statusOptions = {};
   Map<String, String> _sortOptions = {};
@@ -83,13 +87,25 @@ class _GuestPageState extends State<GuestPage> {
       setState(() {
         _guests = data;
         _isLoading = false;
+        _isOfflineData = false;
       });
+      await CacheDatabase.instance.cacheGuests(data);
     } catch (e) {
+      final cached = await CacheDatabase.instance.getCachedGuests();
       if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (cached.isNotEmpty) {
+        setState(() {
+          _guests = cached;
+          _isLoading = false;
+          _isOfflineData = true;
+          _errorMessage = null;
+        });
+      } else {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -103,7 +119,8 @@ class _GuestPageState extends State<GuestPage> {
   List<GuestModel> _applyFilters() {
     final keyword = _searchText.trim().toLowerCase();
     final filtered = _guests.where((g) {
-      final matchesKeyword = keyword.isEmpty ||
+      final matchesKeyword =
+          keyword.isEmpty ||
           g.fullName.toLowerCase().contains(keyword) ||
           (g.email ?? '').toLowerCase().contains(keyword) ||
           (g.phone ?? '').toLowerCase().contains(keyword);
@@ -116,26 +133,40 @@ class _GuestPageState extends State<GuestPage> {
 
     switch (_selectedSort) {
       case 'nameZA':
-        filtered.sort((a, b) =>
-            b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()));
+        filtered.sort(
+          (a, b) =>
+              b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()),
+        );
         break;
       case 'newest':
-        filtered.sort((a, b) =>
-            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+        filtered.sort(
+          (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+            a.createdAt ?? DateTime(0),
+          ),
+        );
         break;
       case 'oldest':
-        filtered.sort((a, b) =>
-            (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0)));
+        filtered.sort(
+          (a, b) => (a.createdAt ?? DateTime(0)).compareTo(
+            b.createdAt ?? DateTime(0),
+          ),
+        );
         break;
       default:
-        filtered.sort((a, b) =>
-            a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+        filtered.sort(
+          (a, b) =>
+              a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+        );
     }
 
     return filtered;
   }
 
   Future<void> _openAddGuest() async {
+    if (_isOfflineMode()) {
+      _showOfflineMessage();
+      return;
+    }
     final l10n = AppLocalizations.of(context)!;
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const GuestAddPage()),
@@ -157,6 +188,8 @@ class _GuestPageState extends State<GuestPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final color = Theme.of(context).colorScheme;
+    final connectivity = context.watch<ConnectivityProvider>();
+    final isOffline = _isOfflineData || !connectivity.isOnline;
     final filteredGuests = _applyFilters();
 
     // 🌀 Loading state
@@ -173,7 +206,11 @@ class _GuestPageState extends State<GuestPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+              Icon(
+                Icons.error_outline_rounded,
+                color: Colors.redAccent,
+                size: 48,
+              ),
               const SizedBox(height: 12),
               Text(
                 l10n.loadingError(_errorMessage!),
@@ -211,8 +248,24 @@ class _GuestPageState extends State<GuestPage> {
                     .where((g) => _statusKeyForGuest(g) == 'preRegistered')
                     .length,
                 onAddGuest: _openAddGuest,
+                isOffline: isOffline,
               ),
             ),
+
+            if (isOffline)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Text(
+                  l10n.guestListOfflineSubtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange.shade700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
 
             const SizedBox(height: 12),
 
@@ -225,7 +278,10 @@ class _GuestPageState extends State<GuestPage> {
                 switchOutCurve: Curves.easeInCubic,
                 child: ListView(
                   key: ValueKey(_guests.length + _selectedStatus.hashCode),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   children: [
                     // 🎛️ Bộ lọc (đã bỏ box ngoài)
                     Padding(
@@ -235,19 +291,19 @@ class _GuestPageState extends State<GuestPage> {
                         children: [
                           Text(
                             l10n.filterGuests,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             l10n.refineGuestList,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant
-                                  .withOpacity(0.8),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
+                                      .withOpacity(0.8),
+                                ),
                           ),
                           const SizedBox(height: 12),
                           GuestFilters(
@@ -273,8 +329,9 @@ class _GuestPageState extends State<GuestPage> {
                         hintText: l10n.searchGuests,
                         prefixIcon: const Icon(Icons.search),
                         filled: true,
-                        fillColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(18),
                           borderSide: BorderSide.none,
@@ -299,9 +356,21 @@ class _GuestPageState extends State<GuestPage> {
                 ),
               ),
             ),
-
           ],
         ),
+      ),
+    );
+  }
+
+  bool _isOfflineMode() {
+    final connectivity = context.read<ConnectivityProvider>();
+    return _isOfflineData || !connectivity.isOnline;
+  }
+
+  void _showOfflineMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🚫 Không thể thực hiện khi đang ngoại tuyến.'),
       ),
     );
   }
